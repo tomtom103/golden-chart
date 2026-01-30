@@ -1,0 +1,111 @@
+{{- if .Values.istio.enabled }}
+{{- range $key, $vs := .Values.istio.virtualServices }}
+{{- if ne ($vs.enabled | toString) "false" }}
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: {{ include "golden-chart.resourceName" (dict "context" $ "component" (printf "vs-%s" $key)) }}
+  namespace: {{ include "golden-chart.namespace" $ }}
+  labels:
+    {{- include "golden-chart.labels" $ | nindent 4 }}
+    {{- with $vs.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with $vs.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $.Values.global.annotations }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  hosts:
+    {{- toYaml $vs.hosts | nindent 4 }}
+  {{- if $vs.gateways }}
+  gateways:
+    {{- range $vs.gateways }}
+    - {{ include "golden-chart.resolveGateway" (dict "context" $ "gateway" .) }}
+    {{- end }}
+  {{- end }}
+  {{- with $vs.exportTo }}
+  exportTo:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $vs.http }}
+  http:
+    {{- range . }}
+    - {{- if .name }}
+      name: {{ .name }}
+      {{- end }}
+      {{- with .match }}
+      match:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .route }}
+      route:
+        {{- range . }}
+        - destination:
+            {{- if .destination.host }}
+            host: {{ include "golden-chart.serviceName" (dict "context" $ "serviceKey" .destination.host) }}
+            {{- end }}
+            {{- with .destination.port }}
+            port:
+              {{- toYaml . | nindent 14 }}
+            {{- end }}
+            {{- with .destination.subset }}
+            subset: {{ . }}
+            {{- end }}
+          {{- with .weight }}
+          weight: {{ . }}
+          {{- end }}
+          {{- with .headers }}
+          headers:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+      {{- with .redirect }}
+      redirect:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .rewrite }}
+      rewrite:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .timeout }}
+      timeout: {{ . }}
+      {{- end }}
+      {{- with .retries }}
+      retries:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .fault }}
+      fault:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .mirror }}
+      mirror:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .corsPolicy }}
+      corsPolicy:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .headers }}
+      headers:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- with $vs.tcp }}
+  tcp:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $vs.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

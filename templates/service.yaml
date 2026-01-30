@@ -1,0 +1,65 @@
+{{- range $key, $service := .Values.services }}
+{{- if ne ($service.enabled | toString) "false" }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "golden-chart.resourceName" (dict "context" $ "component" $key) }}
+  namespace: {{ include "golden-chart.namespace" $ }}
+  labels:
+    {{- include "golden-chart.labels" $ | nindent 4 }}
+    {{- with $service.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with $service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $.Values.global.annotations }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ $service.type | default "ClusterIP" }}
+  {{- if $service.clusterIP }}
+  clusterIP: {{ $service.clusterIP }}
+  {{- end }}
+  {{- if and (eq ($service.type | default "ClusterIP") "LoadBalancer") $service.loadBalancerIP }}
+  loadBalancerIP: {{ $service.loadBalancerIP }}
+  {{- end }}
+  {{- with $service.loadBalancerSourceRanges }}
+  loadBalancerSourceRanges:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- if $service.externalTrafficPolicy }}
+  externalTrafficPolicy: {{ $service.externalTrafficPolicy }}
+  {{- end }}
+  {{- if $service.sessionAffinity }}
+  sessionAffinity: {{ $service.sessionAffinity }}
+  {{- end }}
+  {{- with $service.sessionAffinityConfig }}
+  sessionAffinityConfig:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  ports:
+    {{- range $service.ports }}
+    - name: {{ .name }}
+      port: {{ .port }}
+      targetPort: {{ .targetPort }}
+      protocol: {{ .protocol | default "TCP" }}
+      {{- if and (eq ($service.type | default "ClusterIP") "NodePort") $service.nodePorts }}
+      {{- if index $service.nodePorts .name }}
+      nodePort: {{ index $service.nodePorts .name }}
+      {{- end }}
+      {{- end }}
+    {{- end }}
+  selector:
+    {{- if $service.targetDeployment }}
+    {{- include "golden-chart.serviceSelectorLabels" (dict "context" $ "targetDeployment" $service.targetDeployment "extraLabels" $service.extraSelectorLabels) | nindent 4 }}
+    {{- else }}
+    {{- include "golden-chart.selectorLabels" $ | nindent 4 }}
+    {{- with $service.extraSelectorLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- end }}
+{{- end }}
+{{- end }}

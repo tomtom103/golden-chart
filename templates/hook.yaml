@@ -1,0 +1,109 @@
+{{- range $key, $hook := .Values.hooks }}
+{{- if ne ($hook.enabled | toString) "false" }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "golden-chart.resourceName" (dict "context" $ "component" (printf "hook-%s" $key)) }}
+  namespace: {{ include "golden-chart.namespace" $ }}
+  labels:
+    {{- include "golden-chart.labels" $ | nindent 4 }}
+    {{- with $hook.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  annotations:
+    "helm.sh/hook": {{ $hook.types | quote }}
+    "helm.sh/hook-weight": {{ $hook.weight | default "0" | quote }}
+    "helm.sh/hook-delete-policy": {{ $hook.deletePolicy | default "before-hook-creation,hook-succeeded" | quote }}
+    {{- with $hook.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with $.Values.global.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  {{- with $hook.backoffLimit }}
+  backoffLimit: {{ . }}
+  {{- end }}
+  {{- with $hook.activeDeadlineSeconds }}
+  activeDeadlineSeconds: {{ . }}
+  {{- end }}
+  {{- with $hook.ttlSecondsAfterFinished }}
+  ttlSecondsAfterFinished: {{ . }}
+  {{- end }}
+  template:
+    metadata:
+      labels:
+        {{- include "golden-chart.labels" $ | nindent 8 }}
+        {{- with $hook.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with $hook.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- include "golden-chart.imagePullSecrets" $ | nindent 6 }}
+      {{- if $hook.serviceAccount }}
+      {{- if $hook.serviceAccount.create }}
+      serviceAccountName: {{ include "golden-chart.resourceName" (dict "context" $ "component" (printf "hook-%s" $key)) }}
+      {{- else if $hook.serviceAccount.name }}
+      serviceAccountName: {{ $hook.serviceAccount.name }}
+      {{- end }}
+      {{- end }}
+      {{- with (include "golden-chart.podSecurityContext" (dict "context" $ "override" $hook.podSecurityContext)) }}
+      securityContext:
+        {{- . | nindent 8 }}
+      {{- end }}
+      restartPolicy: {{ $hook.restartPolicy | default "Never" }}
+      containers:
+        - name: {{ $key }}
+          image: {{ include "golden-chart.image" (dict "image" $hook.image "defaults" $.Values.defaults.image) }}
+          imagePullPolicy: {{ $hook.image.pullPolicy | default $.Values.defaults.image.pullPolicy }}
+          {{- with $hook.command }}
+          command:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $hook.args }}
+          args:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $hook.env }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $hook.envFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with (include "golden-chart.containerSecurityContext" (dict "context" $ "override" $hook.containerSecurityContext)) }}
+          securityContext:
+            {{- . | nindent 12 }}
+          {{- end }}
+          {{- $resources := $hook.resources | default $.Values.defaults.resources }}
+          {{- if $resources }}
+          resources:
+            {{- toYaml $resources | nindent 12 }}
+          {{- end }}
+          {{- with $hook.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with $hook.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $hook.nodeSelector | default $.Values.defaults.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $hook.tolerations | default $.Values.defaults.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $hook.affinity | default $.Values.defaults.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
+{{- end }}

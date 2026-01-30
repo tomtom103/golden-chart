@@ -1,0 +1,30 @@
+{{- range $key, $configMap := .Values.configMaps }}
+{{- if ne ($configMap.enabled | toString) "false" }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "golden-chart.resourceName" (dict "context" $ "component" $key) }}
+  namespace: {{ include "golden-chart.namespace" $ }}
+  labels:
+    {{- include "golden-chart.labels" $ | nindent 4 }}
+    {{- with $configMap.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with $configMap.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $.Values.global.annotations }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- with $configMap.data }}
+data:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
+{{- with $configMap.binaryData }}
+binaryData:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
+{{- end }}
+{{- end }}

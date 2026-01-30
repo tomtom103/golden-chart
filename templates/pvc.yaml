@@ -1,0 +1,37 @@
+{{- range $key, $pvc := .Values.persistentVolumeClaims }}
+{{- if ne ($pvc.enabled | toString) "false" }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "golden-chart.resourceName" (dict "context" $ "component" $key) }}
+  namespace: {{ include "golden-chart.namespace" $ }}
+  labels:
+    {{- include "golden-chart.labels" $ | nindent 4 }}
+    {{- with $pvc.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with $pvc.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $.Values.global.annotations }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+    {{- toYaml $pvc.accessModes | nindent 4 }}
+  {{- with $pvc.storageClassName }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    {{- toYaml $pvc.resources | nindent 4 }}
+  {{- with $pvc.selector }}
+  selector:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $pvc.volumeName }}
+  volumeName: {{ . }}
+  {{- end }}
+{{- end }}
+{{- end }}

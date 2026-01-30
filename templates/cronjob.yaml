@@ -1,0 +1,141 @@
+{{- range $key, $cronJob := .Values.cronjobs }}
+{{- if ne ($cronJob.enabled | toString) "false" }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "golden-chart.resourceName" (dict "context" $ "component" $key) }}
+  namespace: {{ include "golden-chart.namespace" $ }}
+  labels:
+    {{- include "golden-chart.labels" $ | nindent 4 }}
+    {{- with $cronJob.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with $cronJob.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $.Values.global.annotations }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  schedule: {{ $cronJob.schedule | quote }}
+  {{- with $cronJob.timeZone }}
+  timeZone: {{ . }}
+  {{- end }}
+  {{- with $cronJob.concurrencyPolicy }}
+  concurrencyPolicy: {{ . }}
+  {{- end }}
+  {{- with $cronJob.failedJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ . }}
+  {{- end }}
+  {{- with $cronJob.successfulJobsHistoryLimit }}
+  successfulJobsHistoryLimit: {{ . }}
+  {{- end }}
+  {{- with $cronJob.startingDeadlineSeconds }}
+  startingDeadlineSeconds: {{ . }}
+  {{- end }}
+  {{- with $cronJob.suspend }}
+  suspend: {{ . }}
+  {{- end }}
+  jobTemplate:
+    metadata:
+      labels:
+        {{- include "golden-chart.labels" $ | nindent 8 }}
+        {{- with $cronJob.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with $cronJob.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with $cronJob.backoffLimit }}
+      backoffLimit: {{ . }}
+      {{- end }}
+      {{- with $cronJob.activeDeadlineSeconds }}
+      activeDeadlineSeconds: {{ . }}
+      {{- end }}
+      {{- with $cronJob.ttlSecondsAfterFinished }}
+      ttlSecondsAfterFinished: {{ . }}
+      {{- end }}
+      {{- with $cronJob.completions }}
+      completions: {{ . }}
+      {{- end }}
+      {{- with $cronJob.parallelism }}
+      parallelism: {{ . }}
+      {{- end }}
+      template:
+        metadata:
+          labels:
+            {{- include "golden-chart.labels" $ | nindent 12 }}
+            {{- with $cronJob.podLabels }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with $cronJob.podAnnotations }}
+          annotations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+        spec:
+          {{- include "golden-chart.imagePullSecrets" $ | nindent 10 }}
+          {{- if and $cronJob.serviceAccount ($cronJob.serviceAccount.create) }}
+          serviceAccountName: {{ include "golden-chart.resourceName" (dict "context" $ "component" $key) }}
+          {{- else if and $cronJob.serviceAccount ($cronJob.serviceAccount.name) }}
+          serviceAccountName: {{ $cronJob.serviceAccount.name }}
+          {{- end }}
+          {{- with (include "golden-chart.podSecurityContext" (dict "context" $ "override" $cronJob.podSecurityContext)) }}
+          securityContext:
+            {{- . | nindent 12 }}
+          {{- end }}
+          restartPolicy: {{ $cronJob.restartPolicy | default "OnFailure" }}
+          containers:
+            - name: {{ $key }}
+              image: {{ include "golden-chart.image" (dict "image" $cronJob.image "defaults" $.Values.defaults.image) }}
+              imagePullPolicy: {{ $cronJob.image.pullPolicy | default $.Values.defaults.image.pullPolicy }}
+              {{- with $cronJob.command }}
+              command:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+              {{- with $cronJob.args }}
+              args:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+              {{- with $cronJob.env }}
+              env:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+              {{- with $cronJob.envFrom }}
+              envFrom:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+              {{- with (include "golden-chart.containerSecurityContext" (dict "context" $ "override" $cronJob.containerSecurityContext)) }}
+              securityContext:
+                {{- . | nindent 16 }}
+              {{- end }}
+              {{- $resources := $cronJob.resources | default $.Values.defaults.resources }}
+              {{- if $resources }}
+              resources:
+                {{- toYaml $resources | nindent 16 }}
+              {{- end }}
+              {{- with $cronJob.volumeMounts }}
+              volumeMounts:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+          {{- with $cronJob.volumes }}
+          volumes:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $cronJob.nodeSelector | default $.Values.defaults.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $cronJob.tolerations | default $.Values.defaults.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $cronJob.affinity | default $.Values.defaults.affinity }}
+          affinity:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}
+{{- end }}

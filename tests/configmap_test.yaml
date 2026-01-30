@@ -1,0 +1,72 @@
+suite: Test ConfigMap Template
+templates:
+  - configmap.yaml
+tests:
+  - it: should create configmap from dev values
+    values:
+      - ../examples/values-dev.yaml
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: ConfigMap
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-golden-chart-app-config
+      - isNotNull:
+          path: data
+      - isNotNull:
+          path: data["config.json"]
+
+  - it: should create configmap with custom data
+    set:
+      configMaps:
+        app-config:
+          data:
+            app.properties: "key=value"
+            database.conf: "host=localhost"
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: data
+          value:
+            app.properties: "key=value"
+            database.conf: "host=localhost"
+
+  - it: should respect enabled flag when false
+    set:
+      configMaps:
+        app-config:
+          enabled: false
+          data:
+            key: value
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should add annotations
+    set:
+      configMaps:
+        app-config:
+          annotations:
+            example.com/annotation: "test"
+          data:
+            key: value
+    asserts:
+      - equal:
+          path: metadata.annotations["example.com/annotation"]
+          value: "test"
+
+  - it: should create multiple configmaps
+    set:
+      configMaps:
+        config1:
+          data:
+            key1: value1
+        config2:
+          data:
+            key2: value2
+    asserts:
+      - hasDocuments:
+          count: 2

@@ -1,0 +1,38 @@
+{{- if .Values.istio.enabled }}
+{{- range $key, $dr := .Values.istio.destinationRules }}
+{{- if ne ($dr.enabled | toString) "false" }}
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: {{ include "golden-chart.resourceName" (dict "context" $ "component" (printf "dr-%s" $key)) }}
+  namespace: {{ include "golden-chart.namespace" $ }}
+  labels:
+    {{- include "golden-chart.labels" $ | nindent 4 }}
+    {{- with $dr.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with $dr.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $.Values.global.annotations }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  host: {{ include "golden-chart.serviceName" (dict "context" $ "serviceKey" $dr.host) }}
+  {{- with $dr.trafficPolicy }}
+  trafficPolicy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $dr.subsets }}
+  subsets:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $dr.exportTo }}
+  exportTo:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

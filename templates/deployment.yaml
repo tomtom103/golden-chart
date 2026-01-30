@@ -1,0 +1,137 @@
+{{- range $key, $deployment := .Values.deployments }}
+{{- if ne ($deployment.enabled | toString) "false" }}
+{{- $merged := merge (deepCopy $deployment) (deepCopy $.Values.defaults) }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "golden-chart.fullname" $ }}-{{ $key }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "golden-chart.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $key }}
+    {{- with $deployment.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with $deployment.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  replicas: {{ $deployment.replicas | default $merged.replicas | default 1 }}
+  selector:
+    matchLabels:
+      {{- include "golden-chart.selectorLabels" $ | nindent 6 }}
+      app.kubernetes.io/component: {{ $key }}
+  {{- with $deployment.strategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  template:
+    metadata:
+      labels:
+        {{- include "golden-chart.labels" $ | nindent 8 }}
+        app.kubernetes.io/component: {{ $key }}
+        {{- with $deployment.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with $deployment.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- if $.Values.serviceAccount }}
+      {{- if or $.Values.serviceAccount.create $.Values.serviceAccount.name }}
+      serviceAccountName: {{ include "golden-chart.serviceAccountName" $ }}
+      {{- end }}
+      {{- end }}
+      {{- with $deployment.initContainers }}
+      initContainers:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ $key }}
+          {{- $image := $deployment.image | default dict }}
+          {{- $defaultImage := $.Values.defaults.image | default dict }}
+          {{- $repository := $image.repository | default $defaultImage.repository | default "nginx" }}
+          {{- $tag := $image.tag | default $defaultImage.tag | default "latest" }}
+          image: "{{ $repository }}:{{ $tag }}"
+          imagePullPolicy: {{ $image.pullPolicy | default $defaultImage.pullPolicy | default "IfNotPresent" }}
+          {{- with $deployment.command }}
+          command:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $deployment.args }}
+          args:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $deployment.ports }}
+          ports:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $deployment.env }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $deployment.envFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- $securityContext := $deployment.securityContext | default $merged.securityContext }}
+          {{- if $securityContext }}
+          securityContext:
+            {{- toYaml $securityContext | nindent 12 }}
+          {{- end }}
+          {{- if and $deployment.livenessProbe $deployment.livenessProbe.enabled }}
+          livenessProbe:
+            {{- omit $deployment.livenessProbe "enabled" | toYaml | nindent 12 }}
+          {{- end }}
+          {{- if and $deployment.readinessProbe $deployment.readinessProbe.enabled }}
+          readinessProbe:
+            {{- omit $deployment.readinessProbe "enabled" | toYaml | nindent 12 }}
+          {{- end }}
+          {{- if and $deployment.startupProbe $deployment.startupProbe.enabled }}
+          startupProbe:
+            {{- omit $deployment.startupProbe "enabled" | toYaml | nindent 12 }}
+          {{- end }}
+          {{- with $deployment.lifecycle }}
+          lifecycle:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- $resources := $deployment.resources | default $merged.resources }}
+          {{- if $resources }}
+          resources:
+            {{- toYaml $resources | nindent 12 }}
+          {{- end }}
+          {{- with $deployment.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+        {{- with $deployment.sidecarContainers }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with $deployment.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- $nodeSelector := $deployment.nodeSelector | default $merged.nodeSelector }}
+      {{- if $nodeSelector }}
+      nodeSelector:
+        {{- toYaml $nodeSelector | nindent 8 }}
+      {{- end }}
+      {{- $tolerations := $deployment.tolerations | default $merged.tolerations }}
+      {{- if $tolerations }}
+      tolerations:
+        {{- toYaml $tolerations | nindent 8 }}
+      {{- end }}
+      {{- $affinity := $deployment.affinity | default $merged.affinity }}
+      {{- if $affinity }}
+      affinity:
+        {{- toYaml $affinity | nindent 8 }}
+      {{- end }}
+      {{- with $deployment.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
+{{- end }}

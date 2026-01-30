@@ -1,0 +1,5 @@
+.vscode/
+.ruff_cache/
+
+charts/
+__snapshot__/

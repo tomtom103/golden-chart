@@ -1,0 +1,187 @@
+{{- $deployments := .Values.deployments | default dict -}}
+{{- $services := .Values.services | default dict -}}
+{{- $istioVirtualServices := .Values.istio.virtualServices | default dict -}}
+{{- $istioGateways := .Values.istio.gateways | default dict -}}
+{{- $cronjobs := .Values.cronjobs | default dict -}}
+
+================================================================================
+{{ .Chart.Name | title }} has been successfully installed!
+================================================================================
+
+Release Name:   {{ .Release.Name }}
+Namespace:      {{ .Release.Namespace }}
+Chart Version:  {{ .Chart.Version }}
+App Version:    {{ .Chart.AppVersion }}
+
+--------------------------------------------------------------------------------
+DEPLOYED RESOURCES:
+--------------------------------------------------------------------------------
+{{- if $deployments }}
+
+✓ Deployments:
+{{- range $key, $deployment := $deployments }}
+{{- if $deployment }}
+  - {{ include "golden-chart.fullname" $ }}-{{ $key }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{- if $services }}
+
+✓ Services:
+{{- range $key, $service := $services }}
+{{- if $service }}
+  - {{ include "golden-chart.fullname" $ }}-{{ $key }} ({{ $service.type | default "ClusterIP" }})
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{- if $cronjobs }}
+
+✓ CronJobs:
+{{- range $key, $cronjob := $cronjobs }}
+{{- if $cronjob }}
+  - {{ include "golden-chart.fullname" $ }}-{{ $key }} ({{ $cronjob.schedule }})
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{- if and .Values.istio.enabled $istioVirtualServices }}
+
+✓ Istio VirtualServices:
+{{- range $key, $vs := $istioVirtualServices }}
+{{- if $vs }}
+  - {{ include "golden-chart.fullname" $ }}-{{ $key }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{- if and .Values.istio.enabled $istioGateways }}
+
+✓ Istio Gateways:
+{{- range $key, $gateway := $istioGateways }}
+{{- if $gateway }}
+  - {{ include "golden-chart.fullname" $ }}-{{ $key }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+--------------------------------------------------------------------------------
+ACCESS YOUR APPLICATION:
+--------------------------------------------------------------------------------
+{{- $accessShown := false }}
+
+{{- if $ingresses }}
+{{- range $key, $ingress := $ingresses }}
+{{- if and $ingress $ingress.hosts }}
+{{- range $host := $ingress.hosts }}
+
+Ingress ({{ $key }}):
+  {{- if $host.paths }}
+  {{- range $path := $host.paths }}
+  http{{ if $ingress.tls }}s{{ end }}://{{ $host.host }}{{ $path.path }}
+  {{- end }}
+  {{- else }}
+  http{{ if $ingress.tls }}s{{ end }}://{{ $host.host }}
+  {{- end }}
+{{- $accessShown = true }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{- if and .Values.istio.enabled $istioVirtualServices }}
+{{- range $key, $vs := $istioVirtualServices }}
+{{- if and $vs $vs.hosts }}
+
+Istio VirtualService ({{ $key }}):
+{{- range $host := $vs.hosts }}
+  https://{{ $host }}
+{{- end }}
+{{- $accessShown = true }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{- if not $accessShown }}
+{{- range $key, $service := $services }}
+{{- if $service }}
+{{- $serviceType := $service.type | default "ClusterIP" }}
+
+{{- if eq $serviceType "LoadBalancer" }}
+Service ({{ $key }}) - LoadBalancer:
+  NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+  
+  Watch the status with:
+    kubectl get svc {{ include "golden-chart.fullname" $ }}-{{ $key }} -n {{ $.Release.Namespace }} --watch
+  
+  Once available, get the IP:
+    export SERVICE_IP=$(kubectl get svc {{ include "golden-chart.fullname" $ }}-{{ $key }} -n {{ $.Release.Namespace }} -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+    echo http://$SERVICE_IP:{{ (index $service.ports 0).port }}
+
+{{- else if eq $serviceType "NodePort" }}
+Service ({{ $key }}) - NodePort:
+  export NODE_PORT=$(kubectl get svc {{ include "golden-chart.fullname" $ }}-{{ $key }} -n {{ $.Release.Namespace }} -o jsonpath='{.spec.ports[0].nodePort}')
+  export NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="ExternalIP")].address}')
+  echo http://$NODE_IP:$NODE_PORT
+
+{{- else if eq $serviceType "ClusterIP" }}
+Service ({{ $key }}) - ClusterIP:
+  Port-forward to access locally:
+    kubectl port-forward svc/{{ include "golden-chart.fullname" $ }}-{{ $key }} -n {{ $.Release.Namespace }} 8080:{{ (index $service.ports 0).port }}
+  
+  Then access at:
+    http://localhost:8080
+
+{{- end }}
+{{- $accessShown = true }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+--------------------------------------------------------------------------------
+USEFUL COMMANDS:
+--------------------------------------------------------------------------------
+
+View all resources:
+  helm list -n {{ .Release.Namespace }}
+  kubectl get all -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+
+{{- if $deployments }}
+
+View pod status:
+  kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+
+View logs:
+{{- range $key, $deployment := $deployments }}
+{{- if $deployment }}
+  kubectl logs -n {{ $.Release.Namespace }} -l app.kubernetes.io/name={{ include "golden-chart.name" $ }},app.kubernetes.io/component={{ $key }} --tail=100 -f
+{{- break }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+Upgrade the release:
+  helm upgrade {{ .Release.Name }} {{ .Chart.Name }} -n {{ .Release.Namespace }} -f values.yaml
+
+Rollback to previous version:
+  helm rollback {{ .Release.Name }} -n {{ .Release.Namespace }}
+
+Uninstall the release:
+  helm uninstall {{ .Release.Name }} -n {{ .Release.Namespace }}
+
+--------------------------------------------------------------------------------
+
+{{- if and .Values.serviceAccount .Values.serviceAccount.create }}
+{{- if .Values.serviceAccount.annotations }}
+
+⚠ IMPORTANT: Service account has annotations that may require external setup:
+{{- range $key, $value := .Values.serviceAccount.annotations }}
+  {{ $key }}: {{ $value }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+For more information, visit: https://github.com/yourorg/{{ .Chart.Name }}
+
+Happy Helming! 🚀

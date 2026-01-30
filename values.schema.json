@@ -1,0 +1,2043 @@
+{
+  "$defs": {
+    "ConfigMapConfig": {
+      "description": "Configuration for ConfigMap",
+      "properties": {
+        "enabled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Enabled"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data"
+        },
+        "annotations": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Annotations"
+        }
+      },
+      "title": "ConfigMapConfig",
+      "type": "object"
+    },
+    "ContainerPort": {
+      "description": "Container port configuration",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "containerPort": {
+          "title": "Containerport",
+          "type": "integer"
+        },
+        "protocol": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "TCP",
+          "title": "Protocol"
+        }
+      },
+      "required": [
+        "name",
+        "containerPort"
+      ],
+      "title": "ContainerPort",
+      "type": "object"
+    },
+    "CronJobConfig": {
+      "description": "Configuration for CronJob",
+      "properties": {
+        "enabled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Enabled"
+        },
+        "schedule": {
+          "title": "Schedule",
+          "type": "string"
+        },
+        "image": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ImageConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "command": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Command"
+        },
+        "args": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Args"
+        },
+        "env": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/EnvVar"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Env"
+        },
+        "resources": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ResourceRequirements"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "restartPolicy": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "OnFailure",
+          "title": "Restartpolicy"
+        }
+      },
+      "required": [
+        "schedule"
+      ],
+      "title": "CronJobConfig",
+      "type": "object"
+    },
+    "Defaults": {
+      "description": "Default values inherited by all resources",
+      "properties": {
+        "image": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ImageConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "replicas": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Replicas"
+        },
+        "resources": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ResourceRequirements"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "securityContext": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SecurityContext"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "env": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/EnvVar"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Env"
+        },
+        "annotations": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Annotations"
+        },
+        "labels": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Labels"
+        }
+      },
+      "title": "Defaults",
+      "type": "object"
+    },
+    "DeploymentConfig": {
+      "description": "Configuration for a Kubernetes Deployment",
+      "properties": {
+        "enabled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Set to false to disable",
+          "title": "Enabled"
+        },
+        "image": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ImageConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "replicas": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Replicas"
+        },
+        "command": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Command"
+        },
+        "args": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Args"
+        },
+        "ports": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/ContainerPort"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ports"
+        },
+        "env": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/EnvVar"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Env"
+        },
+        "resources": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ResourceRequirements"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "securityContext": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SecurityContext"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "livenessProbe": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ProbeConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "readinessProbe": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ProbeConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "startupProbe": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ProbeConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "volumeMounts": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Volumemounts"
+        },
+        "volumes": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Volumes"
+        },
+        "lifecycle": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lifecycle"
+        },
+        "annotations": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Annotations"
+        },
+        "podAnnotations": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Podannotations"
+        }
+      },
+      "title": "DeploymentConfig",
+      "type": "object"
+    },
+    "EnvVar": {
+      "description": "Environment variable configuration",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "valueFrom": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Valuefrom"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "EnvVar",
+      "type": "object"
+    },
+    "HPAConfig": {
+      "description": "Configuration for HorizontalPodAutoscaler",
+      "properties": {
+        "enabled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Enabled"
+        },
+        "targetDeployment": {
+          "description": "Deployment key to target",
+          "title": "Targetdeployment",
+          "type": "string"
+        },
+        "minReplicas": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 2,
+          "title": "Minreplicas"
+        },
+        "maxReplicas": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 10,
+          "title": "Maxreplicas"
+        },
+        "metrics": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Metrics"
+        },
+        "behavior": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Behavior"
+        }
+      },
+      "required": [
+        "targetDeployment"
+      ],
+      "title": "HPAConfig",
+      "type": "object"
+    },
+    "HookConfig": {
+      "description": "Configuration for Helm hooks",
+      "properties": {
+        "enabled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Enabled"
+        },
+        "types": {
+          "title": "Types",
+          "type": "string"
+        },
+        "weight": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Weight"
+        },
+        "deletePolicy": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Deletepolicy"
+        },
+        "backoffLimit": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Backofflimit"
+        },
+        "activeDeadlineSeconds": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Activedeadlineseconds"
+        },
+        "ttlSecondsAfterFinished": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ttlsecondsafterfinished"
+        },
+        "image": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ImageConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "command": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Command"
+        },
+        "args": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Args"
+        },
+        "env": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/EnvVar"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Env"
+        },
+        "envFrom": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Envfrom"
+        },
+        "volumeMounts": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Volumemounts"
+        },
+        "volumes": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Volumes"
+        },
+        "resources": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ResourceRequirements"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "podSecurityContext": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SecurityContext"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "containerSecurityContext": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SecurityContext"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "nodeSelector": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Nodeselector"
+        },
+        "tolerations": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tolerations"
+        },
+        "affinity": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Affinity"
+        },
+        "restartPolicy": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Restartpolicy"
+        },
+        "serviceAccount": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Serviceaccount"
+        },
+        "labels": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Labels"
+        },
+        "annotations": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Annotations"
+        },
+        "podLabels": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Podlabels"
+        },
+        "podAnnotations": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Podannotations"
+        }
+      },
+      "required": [
+        "types"
+      ],
+      "title": "HookConfig",
+      "type": "object"
+    },
+    "ImageConfig": {
+      "description": "Container image configuration",
+      "properties": {
+        "repository": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Repository"
+        },
+        "tag": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tag"
+        },
+        "pullPolicy": {
+          "anyOf": [
+            {
+              "pattern": "^(Always|Never|IfNotPresent)$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pullpolicy"
+        }
+      },
+      "title": "ImageConfig",
+      "type": "object"
+    },
+    "IstioConfig": {
+      "description": "Istio service mesh configuration (simplified)",
+      "properties": {
+        "enabled": {
+          "default": false,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "gateways": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/IstioGatewayConfig"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gateways"
+        },
+        "virtualServices": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/IstioVirtualServiceConfig"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Virtualservices"
+        },
+        "destinationRules": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/IstioDestinationRuleConfig"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Destinationrules"
+        }
+      },
+      "title": "IstioConfig",
+      "type": "object"
+    },
+    "IstioDestinationRuleConfig": {
+      "description": "Istio DestinationRule configuration",
+      "properties": {
+        "enabled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Enabled"
+        },
+        "targetService": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Targetservice"
+        },
+        "trafficPolicy": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Trafficpolicy"
+        }
+      },
+      "title": "IstioDestinationRuleConfig",
+      "type": "object"
+    },
+    "IstioGatewayConfig": {
+      "description": "Istio Gateway configuration",
+      "properties": {
+        "enabled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Enabled"
+        },
+        "servers": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Servers"
+        },
+        "selector": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Selector"
+        }
+      },
+      "title": "IstioGatewayConfig",
+      "type": "object"
+    },
+    "IstioVirtualServiceConfig": {
+      "description": "Istio VirtualService configuration",
+      "properties": {
+        "enabled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Enabled"
+        },
+        "hosts": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Hosts"
+        },
+        "gateways": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gateways"
+        },
+        "http": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Http"
+        }
+      },
+      "title": "IstioVirtualServiceConfig",
+      "type": "object"
+    },
+    "PVCConfig": {
+      "description": "Configuration for PersistentVolumeClaim",
+      "properties": {
+        "enabled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Enabled"
+        },
+        "accessModes": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Accessmodes"
+        },
+        "resources": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resources"
+        },
+        "storageClassName": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Storageclassname"
+        }
+      },
+      "title": "PVCConfig",
+      "type": "object"
+    },
+    "ProbeConfig": {
+      "description": "Health probe configuration",
+      "properties": {
+        "enabled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Enabled"
+        },
+        "httpGet": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Httpget"
+        },
+        "exec": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Exec"
+        },
+        "tcpSocket": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tcpsocket"
+        },
+        "grpc": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Grpc"
+        },
+        "initialDelaySeconds": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Initialdelayseconds"
+        },
+        "periodSeconds": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Periodseconds"
+        },
+        "timeoutSeconds": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timeoutseconds"
+        },
+        "successThreshold": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Successthreshold"
+        },
+        "failureThreshold": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Failurethreshold"
+        }
+      },
+      "title": "ProbeConfig",
+      "type": "object"
+    },
+    "ResourceRequirements": {
+      "description": "CPU and memory resource requirements",
+      "properties": {
+        "requests": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Requests"
+        },
+        "limits": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Limits"
+        }
+      },
+      "title": "ResourceRequirements",
+      "type": "object"
+    },
+    "SecretConfig": {
+      "description": "Configuration for Secret",
+      "properties": {
+        "enabled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Enabled"
+        },
+        "type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Opaque",
+          "title": "Type"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data"
+        },
+        "stringData": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Stringdata"
+        },
+        "annotations": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Annotations"
+        }
+      },
+      "title": "SecretConfig",
+      "type": "object"
+    },
+    "SecurityContext": {
+      "description": "Security context for containers and pods",
+      "properties": {
+        "runAsNonRoot": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Runasnonroot"
+        },
+        "runAsUser": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Runasuser"
+        },
+        "runAsGroup": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Runasgroup"
+        },
+        "fsGroup": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fsgroup"
+        },
+        "readOnlyRootFilesystem": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Readonlyrootfilesystem"
+        },
+        "allowPrivilegeEscalation": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Allowprivilegeescalation"
+        },
+        "capabilities": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Capabilities"
+        },
+        "seccompProfile": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Seccompprofile"
+        }
+      },
+      "title": "SecurityContext",
+      "type": "object"
+    },
+    "ServiceAccountConfig": {
+      "description": "Configuration for ServiceAccount",
+      "properties": {
+        "create": {
+          "default": true,
+          "title": "Create",
+          "type": "boolean"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "annotations": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Annotations"
+        }
+      },
+      "title": "ServiceAccountConfig",
+      "type": "object"
+    },
+    "ServiceConfig": {
+      "description": "Configuration for a Kubernetes Service",
+      "properties": {
+        "enabled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Enabled"
+        },
+        "type": {
+          "anyOf": [
+            {
+              "pattern": "^(ClusterIP|NodePort|LoadBalancer)$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Type"
+        },
+        "targetDeployment": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Deployment key to target",
+          "title": "Targetdeployment"
+        },
+        "ports": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/ServicePort"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ports"
+        },
+        "annotations": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Annotations"
+        }
+      },
+      "title": "ServiceConfig",
+      "type": "object"
+    },
+    "ServicePort": {
+      "description": "Service port configuration",
+      "properties": {
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "port": {
+          "title": "Port",
+          "type": "integer"
+        },
+        "targetPort": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Targetport"
+        },
+        "protocol": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "TCP",
+          "title": "Protocol"
+        }
+      },
+      "required": [
+        "port"
+      ],
+      "title": "ServicePort",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Schema for golden-chart Helm values.yaml",
+  "properties": {
+    "nameOverride": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Override the chart name",
+      "title": "Nameoverride"
+    },
+    "fullnameOverride": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Override the full resource name",
+      "title": "Fullnameoverride"
+    },
+    "defaults": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Defaults"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Default values inherited by all resources"
+    },
+    "deployments": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/DeploymentConfig"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Map of deployments",
+      "title": "Deployments"
+    },
+    "services": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/ServiceConfig"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Map of services",
+      "title": "Services"
+    },
+    "configMaps": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/ConfigMapConfig"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Map of configmaps",
+      "title": "Configmaps"
+    },
+    "secrets": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/SecretConfig"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Map of secrets",
+      "title": "Secrets"
+    },
+    "persistentVolumeClaims": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/PVCConfig"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Map of PVCs",
+      "title": "Persistentvolumeclaims"
+    },
+    "horizontalPodAutoscalers": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/HPAConfig"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Map of HPAs",
+      "title": "Horizontalpodautoscalers"
+    },
+    "cronjobs": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/CronJobConfig"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Map of cronjobs",
+      "title": "Cronjobs"
+    },
+    "hooks": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/HookConfig"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Map of hooks",
+      "title": "Hooks"
+    },
+    "istio": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/IstioConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Istio configuration"
+    },
+    "serviceAccount": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ServiceAccountConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "ServiceAccount configuration"
+    },
+    "imagePullSecrets": {
+      "anyOf": [
+        {
+          "items": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Image pull secrets",
+      "title": "Imagepullsecrets"
+    }
+  },
+  "title": "Golden Helm Chart Values",
+  "type": "object",
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

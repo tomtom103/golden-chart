@@ -1,0 +1,537 @@
+# yaml-language-server: $schema=values.schema.json
+
+global:
+  # Override chart name
+  nameOverride: ""
+  fullnameOverride: ""
+  
+  # Labels applied to all resources
+  labels: {}
+  annotations: {}
+  
+  # Image pull secrets for all workloads
+  imagePullSecrets: []
+  # - name: my-registry-secret
+  
+  # Default namespace (usually set by helm install -n)
+  namespace: ""
+
+# =============================================================================
+# DEFAULT VALUES (inherited by deployments/cronjobs unless overridden)
+# =============================================================================
+defaults:
+  image:
+    repository: ""
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  
+  # Default resource requests/limits
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+  
+  # Security contexts
+  podSecurityContext:
+    runAsNonRoot: true
+    fsGroup: 1000
+  
+  containerSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+  
+  # Scheduling
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  topologySpreadConstraints: []
+  priorityClassName: ""
+  
+  # Pod settings
+  terminationGracePeriodSeconds: 30
+  dnsPolicy: ClusterFirst
+  dnsConfig: {}
+  hostNetwork: false
+  
+  # Probes defaults
+  livenessProbe:
+    httpGet:
+      path: /health/live
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+    successThreshold: 1
+  
+  readinessProbe:
+    httpGet:
+      path: /health/ready
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+    successThreshold: 1
+  
+  startupProbe:
+    enabled: false
+    httpGet:
+      path: /health/startup
+      port: http
+    initialDelaySeconds: 0
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 30
+    successThreshold: 1
+
+# =============================================================================
+# DEPLOYMENTS
+# =============================================================================
+deployments: {}
+  # Example deployment (uncomment and customize):
+  # api:
+  #   enabled: true
+  #   replicaCount: 2
+  #   revisionHistoryLimit: 3
+  #   strategy:
+  #     type: RollingUpdate
+  #     rollingUpdate:
+  #       maxSurge: 1
+  #       maxUnavailable: 0
+  #   image:
+  #     repository: myorg/api
+  #     tag: "v1.0.0"
+  #     pullPolicy: IfNotPresent
+  #   command: []
+  #   args: []
+  #   ports:
+  #     - name: http
+  #       containerPort: 8080
+  #       protocol: TCP
+  #   env: []
+  #   envFrom: []
+  #   volumeMounts: []
+  #   volumes: []
+  #   initContainers: []
+  #   extraContainers: []
+  #   resources: {}
+  #   livenessProbe: {}
+  #   readinessProbe: {}
+  #   startupProbe:
+  #     enabled: false
+  #   lifecycle: {}
+  #   podSecurityContext: {}
+  #   containerSecurityContext: {}
+  #   nodeSelector: {}
+  #   tolerations: []
+  #   affinity: {}
+  #   topologySpreadConstraints: []
+  #   serviceAccount:
+  #     create: true
+  #     name: ""
+  #     annotations: {}
+  #     automountServiceAccountToken: true
+  #   pdb:
+  #     enabled: false
+  #     minAvailable: 1
+  #   autoscaling:
+  #     enabled: false
+  #     minReplicas: 2
+  #     maxReplicas: 10
+  #     targetCPUUtilizationPercentage: 80
+  #     targetMemoryUtilizationPercentage: 80
+  #     customMetrics: []
+  #     behavior:
+  #       scaleDown:
+  #         stabilizationWindowSeconds: 300
+  #         policies:
+  #           - type: Percent
+  #             value: 10
+  #             periodSeconds: 60
+  #       scaleUp:
+  #         stabilizationWindowSeconds: 0
+  #         policies:
+  #           - type: Percent
+  #             value: 100
+  #             periodSeconds: 15
+  #   labels: {}
+  #   annotations: {}
+  #   podLabels: {}
+  #   podAnnotations: {}
+
+# =============================================================================
+# SERVICES
+# =============================================================================
+services: {}
+  # Example service (uncomment and customize):
+  # api:
+  #   enabled: true
+  #   targetDeployment: api
+  #   type: ClusterIP
+  #   ports:
+  #     - name: http
+  #       port: 80
+  #       targetPort: http
+  #       protocol: TCP
+  #   loadBalancerIP: ""
+  #   loadBalancerSourceRanges: []
+  #   externalTrafficPolicy: ""
+  #   sessionAffinity: None
+  #   sessionAffinityConfig: {}
+  #   extraSelectorLabels: {}
+  #   labels: {}
+  #   annotations: {}
+
+# =============================================================================
+# CONFIGMAPS
+# =============================================================================
+configMaps: {}
+  # Example configmap (uncomment and customize):
+  # app-config:
+  #   enabled: true
+  #   labels: {}
+  #   annotations: {}
+  #   data:
+  #     APP_NAME: "my-application"
+  #     LOG_LEVEL: "info"
+  #   binaryData: {}
+
+# =============================================================================
+# SECRETS (optional - often managed externally)
+# =============================================================================
+secrets: {}
+  # Example secret (uncomment and customize):
+  # app-secrets:
+  #   enabled: true
+  #   type: Opaque
+  #   labels: {}
+  #   annotations: {}
+  #   stringData:
+  #     API_KEY: "your-api-key"
+  #   data: {}
+
+# =============================================================================
+# CRONJOBS
+# =============================================================================
+cronJobs: {}
+  # Example cronjob (uncomment and customize):
+  # cleanup:
+  #   enabled: true
+  #   schedule: "0 2 * * *"
+  #   timeZone: "UTC"
+  #   concurrencyPolicy: Forbid
+  #   failedJobsHistoryLimit: 3
+  #   successfulJobsHistoryLimit: 1
+  #   startingDeadlineSeconds: 300
+  #   suspend: false
+  #   backoffLimit: 3
+  #   activeDeadlineSeconds: 3600
+  #   ttlSecondsAfterFinished: 86400
+  #   completions: 1
+  #   parallelism: 1
+  #   image:
+  #     repository: myorg/cleanup-job
+  #     tag: "v1.0.0"
+  #   command: ["./cleanup"]
+  #   args: []
+  #   env: []
+  #   envFrom: []
+  #   volumeMounts: []
+  #   volumes: []
+  #   resources: {}
+  #   podSecurityContext: {}
+  #   containerSecurityContext: {}
+  #   nodeSelector: {}
+  #   tolerations: []
+  #   affinity: {}
+  #   restartPolicy: OnFailure
+  #   serviceAccount:
+  #     create: false
+  #     name: ""
+  #   labels: {}
+  #   annotations: {}
+  #   podLabels: {}
+  #   podAnnotations: {}
+
+# =============================================================================
+# HELM HOOKS
+# =============================================================================
+hooks: {}
+  # Example hook (uncomment and customize):
+  # db-migrate:
+  #   enabled: true
+  #   types: "pre-install,pre-upgrade"
+  #   weight: "-5"
+  #   deletePolicy: "before-hook-creation,hook-succeeded"
+  #   backoffLimit: 3
+  #   activeDeadlineSeconds: 600
+  #   ttlSecondsAfterFinished: 300
+  #   image:
+  #     repository: myorg/migrations
+  #     tag: "v1.0.0"
+  #   command: ["./migrate"]
+  #   args: ["up"]
+  #   env: []
+  #   envFrom: []
+  #   volumeMounts: []
+  #   volumes: []
+  #   resources: {}
+  #   podSecurityContext: {}
+  #   containerSecurityContext: {}
+  #   nodeSelector: {}
+  #   tolerations: []
+  #   affinity: {}
+  #   restartPolicy: Never
+  #   serviceAccount:
+  #     create: false
+  #     name: ""
+  #   labels: {}
+  #   annotations: {}
+  #   podLabels: {}
+  #   podAnnotations: {}
+
+# =============================================================================
+# ISTIO CONFIGURATION
+# =============================================================================
+istio:
+  enabled: false
+  
+  # Gateway definitions
+  gateways: {}
+    # Example gateway (uncomment and customize):
+    # main:
+    #   enabled: true
+    #   labels: {}
+    #   annotations: {}
+    #   selector:
+    #     istio: ingressgateway
+    #   servers:
+    #     - port:
+    #         number: 80
+    #         name: http
+    #         protocol: HTTP
+    #       hosts:
+    #         - "api.example.com"
+    #       tls:
+    #         httpsRedirect: true
+  
+  # VirtualService definitions
+  virtualServices: {}
+    # Example virtualservice (uncomment and customize):
+    # api:
+    #   enabled: true
+    #   labels: {}
+    #   annotations: {}
+    #   hosts:
+    #     - "api.example.com"
+    #   gateways:
+    #     - main
+    #   exportTo:
+    #     - "."
+    #   http:
+    #     - name: default
+    #       route:
+    #         - destination:
+    #             host: api
+    #             port:
+    #               number: 80
+  
+  # DestinationRule definitions
+  destinationRules: {}
+    # Example destinationrule (uncomment and customize):
+    # api:
+    #   enabled: true
+    #   labels: {}
+    #   annotations: {}
+    #   host: api
+    #   trafficPolicy:
+    #     loadBalancer:
+    #       simple: LEAST_REQUEST
+    #   subsets: []
+  
+  # PeerAuthentication (mTLS settings)
+  peerAuthentication: {}
+    # Example peerauthentication (uncomment and customize):
+    # default:
+    #   enabled: true
+    #   labels: {}
+    #   annotations: {}
+    #   selector: {}
+    #   mtls:
+    #     mode: STRICT
+    #   portLevelMtls: {}
+  
+  # AuthorizationPolicy
+  authorizationPolicies: {}
+    # Example authorizationpolicy (uncomment and customize):
+    # api-authz:
+    #   enabled: true
+    #   labels: {}
+    #   annotations: {}
+    #   selector:
+    #     matchLabels:
+    #       app: api
+    #   action: ALLOW
+    #   rules: []
+  
+  # ServiceEntry (for external services)
+  serviceEntries: {}
+    # Example serviceentry (uncomment and customize):
+    # external-api:
+    #   enabled: true
+    #   labels: {}
+    #   annotations: {}
+    #   hosts:
+    #     - "api.external-service.com"
+    #   location: MESH_EXTERNAL
+    #   ports:
+    #     - number: 443
+    #       name: https
+    #       protocol: TLS
+    #   resolution: DNS
+    #   endpoints: []
+
+# =============================================================================
+# INGRESS (non-Istio)
+# =============================================================================
+ingress: {}
+  # Example ingress (uncomment and customize):
+  # api:
+  #   enabled: true
+  #   className: nginx
+  #   labels: {}
+  #   annotations:
+  #     nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  #   hosts:
+  #     - host: api.example.com
+  #       paths:
+  #         - path: /
+  #           pathType: Prefix
+  #           service: api
+  #           port: 80
+  #   tls:
+  #     - secretName: api-example-com-tls
+  #       hosts:
+  #         - api.example.com
+
+# =============================================================================
+# PERSISTENT VOLUME CLAIMS
+# =============================================================================
+persistentVolumeClaims: {}
+  # Example PVC (uncomment and customize):
+  # data:
+  #   enabled: true
+  #   labels: {}
+  #   annotations: {}
+  #   accessModes:
+  #     - ReadWriteOnce
+  #   storageClassName: ""
+  #   resources:
+  #     requests:
+  #       storage: 10Gi
+  #   selector: {}
+  #   volumeName: ""
+
+# =============================================================================
+# SERVICE MONITORS (Prometheus Operator)
+# =============================================================================
+serviceMonitors: {}
+  # Example servicemonitor (uncomment and customize):
+  # api:
+  #   enabled: true
+  #   labels: {}
+  #   annotations: {}
+  #   targetService: api
+  #   endpoints:
+  #     - port: metrics
+  #       path: /metrics
+  #       interval: 30s
+  #       scrapeTimeout: 10s
+  #   namespaceSelector:
+  #     matchNames: []
+  #   jobLabel: ""
+  #   targetLabels: []
+  #   podTargetLabels: []
+
+# =============================================================================
+# POD MONITORS (Prometheus Operator)
+# =============================================================================
+podMonitors: {}
+  # Example podmonitor (uncomment and customize):
+  # worker:
+  #   enabled: true
+  #   labels: {}
+  #   annotations: {}
+  #   targetDeployment: worker
+  #   podMetricsEndpoints:
+  #     - port: metrics
+  #       path: /metrics
+  #       interval: 30s
+
+# =============================================================================
+# NETWORK POLICIES
+# =============================================================================
+networkPolicies: {}
+  # Example networkpolicy (uncomment and customize):
+  # api-policy:
+  #   enabled: true
+  #   labels: {}
+  #   annotations: {}
+  #   podSelector:
+  #     matchLabels:
+  #       app.kubernetes.io/component: api
+  #   policyTypes:
+  #     - Ingress
+  #     - Egress
+  #   ingress: []
+  #   egress: []
+
+# =============================================================================
+# RBAC
+# =============================================================================
+rbac:
+  # Create cluster-scoped resources
+  clusterRole:
+    enabled: false
+    labels: {}
+    annotations: {}
+    rules: []
+  
+  clusterRoleBinding:
+    enabled: false
+    labels: {}
+    annotations: {}
+    subjects: []
+  
+  # Namespace-scoped resources
+  role:
+    enabled: false
+    labels: {}
+    annotations: {}
+    rules: []
+  
+  roleBinding:
+    enabled: false
+    labels: {}
+    annotations: {}
+    subjects: []
+
+# =============================================================================
+# EXTRA RESOURCES (raw Kubernetes manifests)
+# =============================================================================
+extraResources: []
+# - apiVersion: v1
+#   kind: ConfigMap
+#   metadata:
+#     name: extra-config
+#   data:
+#     key: value

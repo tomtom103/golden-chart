@@ -1,0 +1,34 @@
+{{- range $key, $hpa := .Values.horizontalPodAutoscalers }}
+{{- if ne ($hpa.enabled | toString) "false" }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "golden-chart.resourceName" (dict "context" $ "component" $key) }}
+  namespace: {{ include "golden-chart.namespace" $ }}
+  labels:
+    {{- include "golden-chart.labels" $ | nindent 4 }}
+    {{- with $hpa.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with $hpa.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "golden-chart.resourceName" (dict "context" $ "component" $hpa.targetDeployment) }}
+  minReplicas: {{ $hpa.minReplicas | default 2 }}
+  maxReplicas: {{ $hpa.maxReplicas | default 10 }}
+  {{- with $hpa.metrics }}
+  metrics:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $hpa.behavior }}
+  behavior:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}

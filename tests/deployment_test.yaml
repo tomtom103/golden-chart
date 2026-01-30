@@ -1,0 +1,292 @@
+suite: Test Deployment Template
+templates:
+  - deployment.yaml
+tests:
+  - it: should not render when deployments is empty
+    set:
+      deployments: {}
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render deployment with minimal config
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+            tag: latest
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-golden-chart-api
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: nginx:latest
+
+  - it: should use defaults when deployment config is empty object
+    set:
+      defaults:
+        image:
+          repository: myapp
+          tag: v1.0.0
+        replicas: 3
+      deployments:
+        api: {}
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 3
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: myapp:v1.0.0
+
+  - it: should override defaults with specific deployment config
+    set:
+      defaults:
+        image:
+          repository: myapp
+          tag: v1.0.0
+        replicas: 3
+      deployments:
+        api:
+          replicas: 5
+          image:
+            repository: custom
+            tag: v2.0.0
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 5
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: custom:v2.0.0
+
+  - it: should set labels correctly
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+    asserts:
+      - equal:
+          path: metadata.labels["app.kubernetes.io/name"]
+          value: golden-chart
+      - equal:
+          path: metadata.labels["app.kubernetes.io/instance"]
+          value: RELEASE-NAME
+      - equal:
+          path: metadata.labels["app.kubernetes.io/component"]
+          value: api
+
+  - it: should configure container ports
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: metrics
+              containerPort: 9090
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].name
+          value: http
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 8080
+      - equal:
+          path: spec.template.spec.containers[0].ports[1].name
+          value: metrics
+      - equal:
+          path: spec.template.spec.containers[0].ports[1].containerPort
+          value: 9090
+
+  - it: should configure environment variables
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+          env:
+            - name: ENV
+              value: production
+            - name: SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: my-secret
+                  key: password
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[0].name
+          value: ENV
+      - equal:
+          path: spec.template.spec.containers[0].env[0].value
+          value: production
+      - equal:
+          path: spec.template.spec.containers[0].env[1].name
+          value: SECRET
+      - equal:
+          path: spec.template.spec.containers[0].env[1].valueFrom.secretKeyRef.name
+          value: my-secret
+
+  - it: should configure liveness probe
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+          livenessProbe:
+            enabled: true
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /health
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.port
+          value: http
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.initialDelaySeconds
+          value: 30
+
+  - it: should not render liveness probe when disabled
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+          livenessProbe:
+            enabled: false
+    asserts:
+      - isNull:
+          path: spec.template.spec.containers[0].livenessProbe
+
+  - it: should configure security context
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            readOnlyRootFilesystem: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsUser
+          value: 1000
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: true
+
+  - it: should configure resources
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: 100m
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.memory
+          value: 128Mi
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.cpu
+          value: 500m
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.memory
+          value: 512Mi
+
+  - it: should configure init containers
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+          initContainers:
+            - name: init-db
+              image: busybox:latest
+              command: ['sh', '-c', 'until nc -z db 5432; do sleep 1; done']
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: init-db
+      - equal:
+          path: spec.template.spec.initContainers[0].image
+          value: busybox:latest
+
+  - it: should configure volumes and volumeMounts
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+          volumes:
+            - name: config
+              configMap:
+                name: my-config
+          volumeMounts:
+            - name: config
+              mountPath: /etc/config
+              readOnly: true
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].name
+          value: config
+      - equal:
+          path: spec.template.spec.volumes[0].configMap.name
+          value: my-config
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0].name
+          value: config
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0].mountPath
+          value: /etc/config
+
+  - it: should configure service account
+    set:
+      serviceAccount:
+        create: true
+        name: my-sa
+      deployments:
+        api:
+          image:
+            repository: nginx
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: my-sa
+
+  - it: should render multiple deployments
+    set:
+      deployments:
+        api:
+          image:
+            repository: api-image
+        worker:
+          image:
+            repository: worker-image
+    asserts:
+      - hasDocuments:
+          count: 2

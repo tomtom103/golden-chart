@@ -1,0 +1,73 @@
+# Development Environment Values
+# Simple configuration for local development
+
+defaults:
+  image:
+    pullPolicy: Never
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+deployments:
+  api:
+    image:
+      repository: myapp/api
+      tag: dev-latest
+    ports:
+      - name: http
+        containerPort: 8080
+    env:
+      - name: NODE_ENV
+        value: development
+      - name: LOG_LEVEL
+        value: debug
+      - name: DATABASE_URL
+        value: postgresql://postgres:postgres@postgres:5432/myapp_dev
+    livenessProbe:
+      enabled: true
+      httpGet:
+        path: /health
+        port: http
+      initialDelaySeconds: 10
+      periodSeconds: 30
+    readinessProbe:
+      enabled: true
+      httpGet:
+        path: /ready
+        port: http
+      initialDelaySeconds: 5
+      periodSeconds: 10
+
+  worker:
+    image:
+      repository: myapp/worker
+      tag: dev-latest
+    command: ["node", "worker.js"]
+    env:
+      - name: NODE_ENV
+        value: development
+      - name: QUEUE_URL
+        value: redis://redis:6379/0
+
+services:
+  api:
+    type: ClusterIP
+    targetDeployment: api
+    ports:
+      - name: http
+        port: 80
+        targetPort: http
+
+configMaps:
+  app-config:
+    data:
+      config.json: |
+        {
+          "environment": "development",
+          "debug": true
+        }
