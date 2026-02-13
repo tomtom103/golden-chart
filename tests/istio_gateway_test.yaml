@@ -1,0 +1,476 @@
+suite: Test Istio Gateway Template
+templates:
+  - istio/gateway.yaml
+tests:
+  # =========================================================================
+  # Empty / no-render cases
+  # =========================================================================
+  - it: should not render when istio is disabled
+    set:
+      istio:
+        enabled: false
+        gateways:
+          main:
+            selector:
+              istio: ingressgateway
+            servers:
+              - port:
+                  number: 80
+                  name: http
+                  protocol: HTTP
+                hosts:
+                  - "*.example.com"
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should not render when gateways is empty
+    set:
+      istio:
+        enabled: true
+        gateways: {}
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should not render when gateway is disabled
+    set:
+      istio:
+        enabled: true
+        gateways:
+          main:
+            enabled: false
+            selector:
+              istio: ingressgateway
+            servers:
+              - port:
+                  number: 80
+                  name: http
+                  protocol: HTTP
+                hosts:
+                  - "*.example.com"
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render when istio and gateway are enabled
+    set:
+      istio:
+        enabled: true
+        gateways:
+          main:
+            selector:
+              istio: ingressgateway
+            servers:
+              - port:
+                  number: 80
+                  name: http
+                  protocol: HTTP
+                hosts:
+                  - "*.example.com"
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Gateway
+
+  # =========================================================================
+  # API version
+  # =========================================================================
+  - it: should use networking.istio.io/v1beta1
+    set:
+      istio:
+        enabled: true
+        gateways:
+          main:
+            selector:
+              istio: ingressgateway
+            servers:
+              - port:
+                  number: 80
+                  name: http
+                  protocol: HTTP
+                hosts:
+                  - "*.example.com"
+    asserts:
+      - isAPIVersion:
+          of: networking.istio.io/v1beta1
+
+  # =========================================================================
+  # Naming and namespace
+  # =========================================================================
+  - it: should set correct resource name
+    set:
+      istio:
+        enabled: true
+        gateways:
+          main:
+            selector:
+              istio: ingressgateway
+            servers:
+              - port:
+                  number: 80
+                  name: http
+                  protocol: HTTP
+                hosts:
+                  - "*.example.com"
+    asserts:
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-golden-chart-main
+
+  - it: should use fullnameOverride
+    set:
+      fullnameOverride: custom
+      istio:
+        enabled: true
+        gateways:
+          main:
+            selector:
+              istio: ingressgateway
+            servers:
+              - port:
+                  number: 80
+                  name: http
+                  protocol: HTTP
+                hosts:
+                  - "*.example.com"
+    asserts:
+      - equal:
+          path: metadata.name
+          value: custom-main
+
+  - it: should use namespaceOverride
+    set:
+      namespaceOverride: custom-ns
+      istio:
+        enabled: true
+        gateways:
+          main:
+            selector:
+              istio: ingressgateway
+            servers:
+              - port:
+                  number: 80
+                  name: http
+                  protocol: HTTP
+                hosts:
+                  - "*.example.com"
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: custom-ns
+
+  # =========================================================================
+  # Selector
+  # =========================================================================
+  - it: should set gateway selector
+    set:
+      istio:
+        enabled: true
+        gateways:
+          main:
+            selector:
+              istio: ingressgateway
+            servers:
+              - port:
+                  number: 80
+                  name: http
+                  protocol: HTTP
+                hosts:
+                  - "*.example.com"
+    asserts:
+      - equal:
+          path: spec.selector.istio
+          value: ingressgateway
+
+  - it: should support custom selector labels
+    set:
+      istio:
+        enabled: true
+        gateways:
+          main:
+            selector:
+              app: my-custom-gateway
+              version: v1
+            servers:
+              - port:
+                  number: 80
+                  name: http
+                  protocol: HTTP
+                hosts:
+                  - "*.example.com"
+    asserts:
+      - equal:
+          path: spec.selector.app
+          value: my-custom-gateway
+      - equal:
+          path: spec.selector.version
+          value: v1
+
+  # =========================================================================
+  # Servers
+  # =========================================================================
+  - it: should configure HTTP server
+    set:
+      istio:
+        enabled: true
+        gateways:
+          main:
+            selector:
+              istio: ingressgateway
+            servers:
+              - port:
+                  number: 80
+                  name: http
+                  protocol: HTTP
+                hosts:
+                  - "api.example.com"
+    asserts:
+      - equal:
+          path: spec.servers[0].port.number
+          value: 80
+      - equal:
+          path: spec.servers[0].port.protocol
+          value: HTTP
+      - equal:
+          path: spec.servers[0].hosts[0]
+          value: "api.example.com"
+
+  - it: should configure HTTPS server with TLS
+    set:
+      istio:
+        enabled: true
+        gateways:
+          main:
+            selector:
+              istio: ingressgateway
+            servers:
+              - port:
+                  number: 443
+                  name: https
+                  protocol: HTTPS
+                tls:
+                  mode: SIMPLE
+                  credentialName: my-tls-secret
+                hosts:
+                  - "api.example.com"
+    asserts:
+      - equal:
+          path: spec.servers[0].port.number
+          value: 443
+      - equal:
+          path: spec.servers[0].port.protocol
+          value: HTTPS
+      - equal:
+          path: spec.servers[0].tls.mode
+          value: SIMPLE
+      - equal:
+          path: spec.servers[0].tls.credentialName
+          value: my-tls-secret
+
+  - it: should configure multiple servers
+    set:
+      istio:
+        enabled: true
+        gateways:
+          main:
+            selector:
+              istio: ingressgateway
+            servers:
+              - port:
+                  number: 80
+                  name: http
+                  protocol: HTTP
+                hosts:
+                  - "*.example.com"
+              - port:
+                  number: 443
+                  name: https
+                  protocol: HTTPS
+                hosts:
+                  - "*.example.com"
+    asserts:
+      - lengthEqual:
+          path: spec.servers
+          count: 2
+
+  - it: should support wildcard hosts
+    set:
+      istio:
+        enabled: true
+        gateways:
+          main:
+            selector:
+              istio: ingressgateway
+            servers:
+              - port:
+                  number: 80
+                  name: http
+                  protocol: HTTP
+                hosts:
+                  - "*.example.com"
+                  - "*.other.com"
+    asserts:
+      - equal:
+          path: spec.servers[0].hosts
+          value:
+            - "*.example.com"
+            - "*.other.com"
+
+  # =========================================================================
+  # Labels and annotations
+  # =========================================================================
+  - it: should set common labels
+    set:
+      istio:
+        enabled: true
+        gateways:
+          main:
+            selector:
+              istio: ingressgateway
+            servers:
+              - port:
+                  number: 80
+                  name: http
+                  protocol: HTTP
+                hosts:
+                  - "*.example.com"
+    asserts:
+      - equal:
+          path: metadata.labels["app.kubernetes.io/name"]
+          value: golden-chart
+
+  - it: should add custom labels
+    set:
+      istio:
+        enabled: true
+        gateways:
+          main:
+            labels:
+              custom: label
+            selector:
+              istio: ingressgateway
+            servers:
+              - port:
+                  number: 80
+                  name: http
+                  protocol: HTTP
+                hosts:
+                  - "*.example.com"
+    asserts:
+      - equal:
+          path: metadata.labels.custom
+          value: label
+
+  - it: should add annotations
+    set:
+      istio:
+        enabled: true
+        gateways:
+          main:
+            annotations:
+              my-annotation: test
+            selector:
+              istio: ingressgateway
+            servers:
+              - port:
+                  number: 80
+                  name: http
+                  protocol: HTTP
+                hosts:
+                  - "*.example.com"
+    asserts:
+      - equal:
+          path: metadata.annotations["my-annotation"]
+          value: test
+
+  - it: should add global annotations when resource has annotations
+    set:
+      global:
+        annotations:
+          global-annotation: global-value
+      istio:
+        enabled: true
+        gateways:
+          main:
+            annotations:
+              local: value
+            selector:
+              istio: ingressgateway
+            servers:
+              - port:
+                  number: 80
+                  name: http
+                  protocol: HTTP
+                hosts:
+                  - "*.example.com"
+    asserts:
+      - equal:
+          path: metadata.annotations["global-annotation"]
+          value: global-value
+      - equal:
+          path: metadata.annotations.local
+          value: value
+
+  # =========================================================================
+  # Multiple gateways
+  # =========================================================================
+  - it: should create multiple gateways
+    set:
+      istio:
+        enabled: true
+        gateways:
+          public:
+            selector:
+              istio: ingressgateway
+            servers:
+              - port:
+                  number: 80
+                  name: http
+                  protocol: HTTP
+                hosts:
+                  - "*.example.com"
+          internal:
+            selector:
+              istio: internal-gateway
+            servers:
+              - port:
+                  number: 80
+                  name: http
+                  protocol: HTTP
+                hosts:
+                  - "*.internal.com"
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: should render only enabled gateways
+    set:
+      istio:
+        enabled: true
+        gateways:
+          public:
+            selector:
+              istio: ingressgateway
+            servers:
+              - port:
+                  number: 80
+                  name: http
+                  protocol: HTTP
+                hosts:
+                  - "*.example.com"
+          internal:
+            enabled: false
+            selector:
+              istio: internal-gateway
+            servers:
+              - port:
+                  number: 80
+                  name: http
+                  protocol: HTTP
+                hosts:
+                  - "*.internal.com"
+    asserts:
+      - hasDocuments:
+          count: 1

@@ -1,5 +1,6 @@
-# Development Environment Values
-# Simple configuration for local development
+# yaml-language-server: $schema=../values.schema.json
+# Development Environment - Data Platform
+# Local development with k3s: Metabase dashboard, FastAPI data service, Celery worker
 
 defaults:
   image:
@@ -14,20 +15,22 @@ defaults:
       memory: 512Mi
 
 deployments:
-  api:
+  data-api:
     image:
-      repository: myapp/api
+      repository: data-platform/api
       tag: dev-latest
     ports:
       - name: http
-        containerPort: 8080
+        containerPort: 8000
     env:
-      - name: NODE_ENV
+      - name: ENVIRONMENT
         value: development
       - name: LOG_LEVEL
         value: debug
       - name: DATABASE_URL
-        value: postgresql://postgres:postgres@postgres:5432/myapp_dev
+        value: postgresql://postgres:postgres@postgres:5432/dataplatform_dev
+      - name: REDIS_URL
+        value: redis://redis:6379/0
     livenessProbe:
       enabled: true
       httpGet:
@@ -38,36 +41,82 @@ deployments:
     readinessProbe:
       enabled: true
       httpGet:
-        path: /ready
+        path: /health/ready
         port: http
       initialDelaySeconds: 5
       periodSeconds: 10
 
-  worker:
+  celery-worker:
     image:
-      repository: myapp/worker
+      repository: data-platform/api
       tag: dev-latest
-    command: ["node", "worker.js"]
+    command: ["celery", "-A", "app.worker", "worker", "--loglevel=debug", "--concurrency=2"]
     env:
-      - name: NODE_ENV
+      - name: ENVIRONMENT
         value: development
-      - name: QUEUE_URL
+      - name: DATABASE_URL
+        value: postgresql://postgres:postgres@postgres:5432/dataplatform_dev
+      - name: REDIS_URL
         value: redis://redis:6379/0
 
+  metabase:
+    image:
+      repository: metabase/metabase
+      tag: v0.48.0
+    ports:
+      - name: http
+        containerPort: 3000
+    env:
+      - name: MB_DB_TYPE
+        value: postgres
+      - name: MB_DB_HOST
+        value: postgres
+      - name: MB_DB_PORT
+        value: "5432"
+      - name: MB_DB_DBNAME
+        value: metabase
+      - name: MB_DB_USER
+        value: postgres
+      - name: MB_DB_PASS
+        value: postgres
+    livenessProbe:
+      enabled: true
+      httpGet:
+        path: /api/health
+        port: http
+      initialDelaySeconds: 60
+      periodSeconds: 30
+    readinessProbe:
+      enabled: true
+      httpGet:
+        path: /api/health
+        port: http
+      initialDelaySeconds: 30
+      periodSeconds: 10
+
 services:
-  api:
+  data-api:
     type: ClusterIP
-    targetDeployment: api
+    targetDeployment: data-api
+    ports:
+      - name: http
+        port: 80
+        targetPort: http
+
+  metabase:
+    type: ClusterIP
+    targetDeployment: metabase
     ports:
       - name: http
         port: 80
         targetPort: http
 
 configMaps:
-  app-config:
+  data-api-config:
     data:
-      config.json: |
-        {
-          "environment": "development",
-          "debug": true
-        }
+      config.yaml: |
+        environment: development
+        debug: true
+        cors_origins:
+          - "http://localhost:3000"
+          - "http://localhost:8000"

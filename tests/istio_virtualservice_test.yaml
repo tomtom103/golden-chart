@@ -1,0 +1,721 @@
+suite: Test Istio VirtualService Template
+templates:
+  - istio/virtualservice.yaml
+tests:
+  # =========================================================================
+  # Empty / no-render cases
+  # =========================================================================
+  - it: should not render when istio is disabled
+    set:
+      istio:
+        enabled: false
+        virtualServices:
+          api:
+            hosts:
+              - "api.example.com"
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should not render when virtualServices is empty
+    set:
+      istio:
+        enabled: true
+        virtualServices: {}
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should not render when virtualService is disabled
+    set:
+      istio:
+        enabled: true
+        virtualServices:
+          api:
+            enabled: false
+            hosts:
+              - "api.example.com"
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render when enabled
+    set:
+      istio:
+        enabled: true
+        virtualServices:
+          api:
+            hosts:
+              - "api.example.com"
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: VirtualService
+
+  # =========================================================================
+  # API version
+  # =========================================================================
+  - it: should use networking.istio.io/v1beta1
+    set:
+      istio:
+        enabled: true
+        virtualServices:
+          api:
+            hosts:
+              - "api.example.com"
+    asserts:
+      - isAPIVersion:
+          of: networking.istio.io/v1beta1
+
+  # =========================================================================
+  # Naming and namespace
+  # =========================================================================
+  - it: should set correct resource name with vs- prefix
+    set:
+      istio:
+        enabled: true
+        virtualServices:
+          api:
+            hosts:
+              - "api.example.com"
+    asserts:
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-golden-chart-vs-api
+
+  - it: should use fullnameOverride
+    set:
+      fullnameOverride: custom
+      istio:
+        enabled: true
+        virtualServices:
+          api:
+            hosts:
+              - "api.example.com"
+    asserts:
+      - equal:
+          path: metadata.name
+          value: custom-vs-api
+
+  - it: should use namespaceOverride
+    set:
+      namespaceOverride: custom-ns
+      istio:
+        enabled: true
+        virtualServices:
+          api:
+            hosts:
+              - "api.example.com"
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: custom-ns
+
+  # =========================================================================
+  # Hosts
+  # =========================================================================
+  - it: should set single host
+    set:
+      istio:
+        enabled: true
+        virtualServices:
+          api:
+            hosts:
+              - "api.example.com"
+    asserts:
+      - equal:
+          path: spec.hosts
+          value:
+            - "api.example.com"
+
+  - it: should set multiple hosts
+    set:
+      istio:
+        enabled: true
+        virtualServices:
+          api:
+            hosts:
+              - "api.example.com"
+              - "api.other.com"
+    asserts:
+      - equal:
+          path: spec.hosts
+          value:
+            - "api.example.com"
+            - "api.other.com"
+
+  # =========================================================================
+  # Gateways
+  # =========================================================================
+  - it: should pass gateway string as-is (string values are not resolved)
+    set:
+      istio:
+        enabled: true
+        virtualServices:
+          api:
+            hosts:
+              - "api.example.com"
+            gateways:
+              - main
+    asserts:
+      - equal:
+          path: spec.gateways[0]
+          value: main
+
+  - it: should use gateway string as-is
+    set:
+      istio:
+        enabled: true
+        virtualServices:
+          api:
+            hosts:
+              - "api.example.com"
+            gateways:
+              - "istio-system/my-gateway"
+    asserts:
+      - equal:
+          path: spec.gateways[0]
+          value: "istio-system/my-gateway"
+
+  - it: should support multiple gateways
+    set:
+      istio:
+        enabled: true
+        virtualServices:
+          api:
+            hosts:
+              - "api.example.com"
+            gateways:
+              - "istio-system/gateway-a"
+              - "istio-system/gateway-b"
+    asserts:
+      - lengthEqual:
+          path: spec.gateways
+          count: 2
+
+  - it: should not render gateways when not specified
+    set:
+      istio:
+        enabled: true
+        virtualServices:
+          api:
+            hosts:
+              - "api.example.com"
+    asserts:
+      - isNull:
+          path: spec.gateways
+
+  # =========================================================================
+  # ExportTo
+  # =========================================================================
+  - it: should set exportTo
+    set:
+      istio:
+        enabled: true
+        virtualServices:
+          api:
+            hosts:
+              - "api.example.com"
+            exportTo:
+              - "."
+              - "istio-system"
+    asserts:
+      - equal:
+          path: spec.exportTo
+          value:
+            - "."
+            - "istio-system"
+
+  - it: should not render exportTo when not specified
+    set:
+      istio:
+        enabled: true
+        virtualServices:
+          api:
+            hosts:
+              - "api.example.com"
+    asserts:
+      - isNull:
+          path: spec.exportTo
+
+  # =========================================================================
+  # HTTP routes
+  # =========================================================================
+  - it: should configure basic HTTP route
+    set:
+      istio:
+        enabled: true
+        virtualServices:
+          api:
+            hosts:
+              - "api.example.com"
+            http:
+              - route:
+                  - destination:
+                      host: api
+                      port:
+                        number: 80
+    asserts:
+      - equal:
+          path: spec.http[0].route[0].destination.host
+          value: RELEASE-NAME-golden-chart-api
+      - equal:
+          path: spec.http[0].route[0].destination.port.number
+          value: 80
+
+  - it: should configure route with weight
+    set:
+      istio:
+        enabled: true
+        virtualServices:
+          api:
+            hosts:
+              - "api.example.com"
+            http:
+              - route:
+                  - destination:
+                      host: api
+                      port:
+                        number: 80
+                    weight: 80
+                  - destination:
+                      host: api
+                      port:
+                        number: 80
+                      subset: canary
+                    weight: 20
+    asserts:
+      - equal:
+          path: spec.http[0].route[0].weight
+          value: 80
+      - equal:
+          path: spec.http[0].route[1].weight
+          value: 20
+      - equal:
+          path: spec.http[0].route[1].destination.subset
+          value: canary
+
+  - it: should configure route with match rules
+    set:
+      istio:
+        enabled: true
+        virtualServices:
+          api:
+            hosts:
+              - "api.example.com"
+            http:
+              - match:
+                  - uri:
+                      prefix: /api/v1
+                route:
+                  - destination:
+                      host: api
+                      port:
+                        number: 80
+    asserts:
+      - equal:
+          path: spec.http[0].match[0].uri.prefix
+          value: /api/v1
+
+  - it: should configure route name
+    set:
+      istio:
+        enabled: true
+        virtualServices:
+          api:
+            hosts:
+              - "api.example.com"
+            http:
+              - name: api-route
+                route:
+                  - destination:
+                      host: api
+                      port:
+                        number: 80
+    asserts:
+      - equal:
+          path: spec.http[0].name
+          value: api-route
+
+  # =========================================================================
+  # Timeout and retries
+  # =========================================================================
+  - it: should configure timeout
+    set:
+      istio:
+        enabled: true
+        virtualServices:
+          api:
+            hosts:
+              - "api.example.com"
+            http:
+              - timeout: 30s
+                route:
+                  - destination:
+                      host: api
+                      port:
+                        number: 80
+    asserts:
+      - equal:
+          path: spec.http[0].timeout
+          value: 30s
+
+  - it: should configure retries
+    set:
+      istio:
+        enabled: true
+        virtualServices:
+          api:
+            hosts:
+              - "api.example.com"
+            http:
+              - retries:
+                  attempts: 3
+                  perTryTimeout: 5s
+                  retryOn: "5xx,gateway-error"
+                route:
+                  - destination:
+                      host: api
+                      port:
+                        number: 80
+    asserts:
+      - equal:
+          path: spec.http[0].retries.attempts
+          value: 3
+      - equal:
+          path: spec.http[0].retries.perTryTimeout
+          value: 5s
+
+  # =========================================================================
+  # Fault injection
+  # =========================================================================
+  - it: should configure fault injection
+    set:
+      istio:
+        enabled: true
+        virtualServices:
+          api:
+            hosts:
+              - "api.example.com"
+            http:
+              - fault:
+                  delay:
+                    percentage:
+                      value: 10
+                    fixedDelay: 5s
+                  abort:
+                    percentage:
+                      value: 5
+                    httpStatus: 500
+                route:
+                  - destination:
+                      host: api
+                      port:
+                        number: 80
+    asserts:
+      - equal:
+          path: spec.http[0].fault.delay.fixedDelay
+          value: 5s
+      - equal:
+          path: spec.http[0].fault.abort.httpStatus
+          value: 500
+
+  # =========================================================================
+  # Redirect and rewrite
+  # =========================================================================
+  - it: should configure redirect
+    set:
+      istio:
+        enabled: true
+        virtualServices:
+          api:
+            hosts:
+              - "api.example.com"
+            http:
+              - redirect:
+                  uri: /new-path
+                  authority: new-host.example.com
+    asserts:
+      - equal:
+          path: spec.http[0].redirect.uri
+          value: /new-path
+
+  - it: should configure rewrite
+    set:
+      istio:
+        enabled: true
+        virtualServices:
+          api:
+            hosts:
+              - "api.example.com"
+            http:
+              - rewrite:
+                  uri: /
+                route:
+                  - destination:
+                      host: api
+                      port:
+                        number: 80
+    asserts:
+      - equal:
+          path: spec.http[0].rewrite.uri
+          value: /
+
+  # =========================================================================
+  # Mirror
+  # =========================================================================
+  - it: should configure mirror
+    set:
+      istio:
+        enabled: true
+        virtualServices:
+          api:
+            hosts:
+              - "api.example.com"
+            http:
+              - mirror:
+                  host: shadow-api
+                  port:
+                    number: 80
+                route:
+                  - destination:
+                      host: api
+                      port:
+                        number: 80
+    asserts:
+      - equal:
+          path: spec.http[0].mirror.host
+          value: shadow-api
+
+  # =========================================================================
+  # CORS policy
+  # =========================================================================
+  - it: should configure CORS policy
+    set:
+      istio:
+        enabled: true
+        virtualServices:
+          api:
+            hosts:
+              - "api.example.com"
+            http:
+              - corsPolicy:
+                  allowOrigins:
+                    - exact: "https://example.com"
+                  allowMethods:
+                    - GET
+                    - POST
+                  allowHeaders:
+                    - Authorization
+                  maxAge: "24h"
+                route:
+                  - destination:
+                      host: api
+                      port:
+                        number: 80
+    asserts:
+      - equal:
+          path: spec.http[0].corsPolicy.allowOrigins[0].exact
+          value: "https://example.com"
+
+  # =========================================================================
+  # Headers
+  # =========================================================================
+  - it: should configure route-level headers
+    set:
+      istio:
+        enabled: true
+        virtualServices:
+          api:
+            hosts:
+              - "api.example.com"
+            http:
+              - route:
+                  - destination:
+                      host: api
+                      port:
+                        number: 80
+                    headers:
+                      request:
+                        set:
+                          x-forwarded-proto: https
+    asserts:
+      - equal:
+          path: spec.http[0].route[0].headers.request.set.x-forwarded-proto
+          value: https
+
+  # =========================================================================
+  # TCP routes
+  # =========================================================================
+  - it: should configure TCP routes
+    set:
+      istio:
+        enabled: true
+        virtualServices:
+          db:
+            hosts:
+              - "db.internal"
+            tcp:
+              - match:
+                  - port: 5432
+                route:
+                  - destination:
+                      host: postgres
+                      port:
+                        number: 5432
+    asserts:
+      - equal:
+          path: spec.tcp[0].match[0].port
+          value: 5432
+
+  - it: should not render tcp when not specified
+    set:
+      istio:
+        enabled: true
+        virtualServices:
+          api:
+            hosts:
+              - "api.example.com"
+    asserts:
+      - isNull:
+          path: spec.tcp
+
+  # =========================================================================
+  # TLS routes
+  # =========================================================================
+  - it: should configure TLS routes
+    set:
+      istio:
+        enabled: true
+        virtualServices:
+          api:
+            hosts:
+              - "api.example.com"
+            tls:
+              - match:
+                  - port: 443
+                    sniHosts:
+                      - "api.example.com"
+                route:
+                  - destination:
+                      host: api
+                      port:
+                        number: 443
+    asserts:
+      - equal:
+          path: spec.tls[0].match[0].port
+          value: 443
+
+  - it: should not render tls when not specified
+    set:
+      istio:
+        enabled: true
+        virtualServices:
+          api:
+            hosts:
+              - "api.example.com"
+    asserts:
+      - isNull:
+          path: spec.tls
+
+  # =========================================================================
+  # Labels and annotations
+  # =========================================================================
+  - it: should set common labels
+    set:
+      istio:
+        enabled: true
+        virtualServices:
+          api:
+            hosts:
+              - "api.example.com"
+    asserts:
+      - equal:
+          path: metadata.labels["app.kubernetes.io/name"]
+          value: golden-chart
+
+  - it: should add custom labels
+    set:
+      istio:
+        enabled: true
+        virtualServices:
+          api:
+            labels:
+              custom: label
+            hosts:
+              - "api.example.com"
+    asserts:
+      - equal:
+          path: metadata.labels.custom
+          value: label
+
+  - it: should add annotations
+    set:
+      istio:
+        enabled: true
+        virtualServices:
+          api:
+            annotations:
+              my-annotation: test
+            hosts:
+              - "api.example.com"
+    asserts:
+      - equal:
+          path: metadata.annotations["my-annotation"]
+          value: test
+
+  - it: should add global annotations when resource has annotations
+    set:
+      global:
+        annotations:
+          global-annotation: global-value
+      istio:
+        enabled: true
+        virtualServices:
+          api:
+            annotations:
+              local: value
+            hosts:
+              - "api.example.com"
+    asserts:
+      - equal:
+          path: metadata.annotations["global-annotation"]
+          value: global-value
+      - equal:
+          path: metadata.annotations.local
+          value: value
+
+  # =========================================================================
+  # Multiple virtual services
+  # =========================================================================
+  - it: should create multiple virtual services
+    set:
+      istio:
+        enabled: true
+        virtualServices:
+          api:
+            hosts:
+              - "api.example.com"
+          web:
+            hosts:
+              - "www.example.com"
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: should render only enabled virtual services
+    set:
+      istio:
+        enabled: true
+        virtualServices:
+          api:
+            hosts:
+              - "api.example.com"
+          web:
+            enabled: false
+            hosts:
+              - "www.example.com"
+    asserts:
+      - hasDocuments:
+          count: 1

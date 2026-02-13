@@ -1,0 +1,356 @@
+suite: Test HPA Template
+templates:
+  - hpa.yaml
+tests:
+  # =========================================================================
+  # Empty / no-render cases
+  # =========================================================================
+  - it: should not render when horizontalPodAutoscalers is empty
+    set:
+      horizontalPodAutoscalers: {}
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should not render when HPA is disabled
+    set:
+      horizontalPodAutoscalers:
+        api:
+          enabled: false
+          targetDeployment: api
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render when enabled is explicitly true
+    set:
+      horizontalPodAutoscalers:
+        api:
+          enabled: true
+          targetDeployment: api
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: HorizontalPodAutoscaler
+
+  # =========================================================================
+  # API version
+  # =========================================================================
+  - it: should use autoscaling/v2 API version
+    set:
+      horizontalPodAutoscalers:
+        api:
+          targetDeployment: api
+    asserts:
+      - isAPIVersion:
+          of: autoscaling/v2
+
+  # =========================================================================
+  # Naming and namespace
+  # =========================================================================
+  - it: should set correct resource name
+    set:
+      horizontalPodAutoscalers:
+        api:
+          targetDeployment: api
+    asserts:
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-golden-chart-api
+
+  - it: should use fullnameOverride
+    set:
+      fullnameOverride: custom
+      horizontalPodAutoscalers:
+        api:
+          targetDeployment: api
+    asserts:
+      - equal:
+          path: metadata.name
+          value: custom-api
+
+  - it: should use namespaceOverride
+    set:
+      namespaceOverride: custom-ns
+      horizontalPodAutoscalers:
+        api:
+          targetDeployment: api
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: custom-ns
+
+  # =========================================================================
+  # Scale target ref
+  # =========================================================================
+  - it: should target correct deployment
+    set:
+      horizontalPodAutoscalers:
+        api:
+          targetDeployment: my-api
+    asserts:
+      - equal:
+          path: spec.scaleTargetRef.apiVersion
+          value: apps/v1
+      - equal:
+          path: spec.scaleTargetRef.kind
+          value: Deployment
+      - equal:
+          path: spec.scaleTargetRef.name
+          value: RELEASE-NAME-golden-chart-my-api
+
+  - it: should resolve target deployment name with fullnameOverride
+    set:
+      fullnameOverride: custom
+      horizontalPodAutoscalers:
+        api:
+          targetDeployment: web
+    asserts:
+      - equal:
+          path: spec.scaleTargetRef.name
+          value: custom-web
+
+  # =========================================================================
+  # Replicas
+  # =========================================================================
+  - it: should default minReplicas to 2
+    set:
+      horizontalPodAutoscalers:
+        api:
+          targetDeployment: api
+    asserts:
+      - equal:
+          path: spec.minReplicas
+          value: 2
+
+  - it: should default maxReplicas to 10
+    set:
+      horizontalPodAutoscalers:
+        api:
+          targetDeployment: api
+    asserts:
+      - equal:
+          path: spec.maxReplicas
+          value: 10
+
+  - it: should set custom minReplicas and maxReplicas
+    set:
+      horizontalPodAutoscalers:
+        api:
+          targetDeployment: api
+          minReplicas: 3
+          maxReplicas: 20
+    asserts:
+      - equal:
+          path: spec.minReplicas
+          value: 3
+      - equal:
+          path: spec.maxReplicas
+          value: 20
+
+  # =========================================================================
+  # Metrics
+  # =========================================================================
+  - it: should configure CPU utilization metric
+    set:
+      horizontalPodAutoscalers:
+        api:
+          targetDeployment: api
+          metrics:
+            - type: Resource
+              resource:
+                name: cpu
+                target:
+                  type: Utilization
+                  averageUtilization: 80
+    asserts:
+      - equal:
+          path: spec.metrics[0].type
+          value: Resource
+      - equal:
+          path: spec.metrics[0].resource.name
+          value: cpu
+      - equal:
+          path: spec.metrics[0].resource.target.averageUtilization
+          value: 80
+
+  - it: should configure memory utilization metric
+    set:
+      horizontalPodAutoscalers:
+        api:
+          targetDeployment: api
+          metrics:
+            - type: Resource
+              resource:
+                name: memory
+                target:
+                  type: Utilization
+                  averageUtilization: 70
+    asserts:
+      - equal:
+          path: spec.metrics[0].resource.name
+          value: memory
+
+  - it: should configure multiple metrics
+    set:
+      horizontalPodAutoscalers:
+        api:
+          targetDeployment: api
+          metrics:
+            - type: Resource
+              resource:
+                name: cpu
+                target:
+                  type: Utilization
+                  averageUtilization: 80
+            - type: Resource
+              resource:
+                name: memory
+                target:
+                  type: Utilization
+                  averageUtilization: 70
+    asserts:
+      - lengthEqual:
+          path: spec.metrics
+          count: 2
+
+  - it: should configure custom/external metric
+    set:
+      horizontalPodAutoscalers:
+        api:
+          targetDeployment: api
+          metrics:
+            - type: Pods
+              pods:
+                metric:
+                  name: requests_per_second
+                target:
+                  type: AverageValue
+                  averageValue: "1k"
+    asserts:
+      - equal:
+          path: spec.metrics[0].type
+          value: Pods
+
+  - it: should not render metrics when not specified
+    set:
+      horizontalPodAutoscalers:
+        api:
+          targetDeployment: api
+    asserts:
+      - isNull:
+          path: spec.metrics
+
+  # =========================================================================
+  # Behavior
+  # =========================================================================
+  - it: should configure scaling behavior
+    set:
+      horizontalPodAutoscalers:
+        api:
+          targetDeployment: api
+          behavior:
+            scaleDown:
+              stabilizationWindowSeconds: 300
+              policies:
+                - type: Percent
+                  value: 10
+                  periodSeconds: 60
+            scaleUp:
+              stabilizationWindowSeconds: 0
+              policies:
+                - type: Percent
+                  value: 100
+                  periodSeconds: 15
+    asserts:
+      - equal:
+          path: spec.behavior.scaleDown.stabilizationWindowSeconds
+          value: 300
+      - equal:
+          path: spec.behavior.scaleUp.stabilizationWindowSeconds
+          value: 0
+
+  - it: should not render behavior when not specified
+    set:
+      horizontalPodAutoscalers:
+        api:
+          targetDeployment: api
+    asserts:
+      - isNull:
+          path: spec.behavior
+
+  # =========================================================================
+  # Labels and annotations
+  # =========================================================================
+  - it: should set common labels
+    set:
+      horizontalPodAutoscalers:
+        api:
+          targetDeployment: api
+    asserts:
+      - equal:
+          path: metadata.labels["app.kubernetes.io/name"]
+          value: golden-chart
+      - equal:
+          path: metadata.labels["app.kubernetes.io/managed-by"]
+          value: Helm
+
+  - it: should add custom labels
+    set:
+      horizontalPodAutoscalers:
+        api:
+          targetDeployment: api
+          labels:
+            custom: label
+    asserts:
+      - equal:
+          path: metadata.labels.custom
+          value: label
+
+  - it: should add annotations
+    set:
+      horizontalPodAutoscalers:
+        api:
+          targetDeployment: api
+          annotations:
+            my-annotation: test
+    asserts:
+      - equal:
+          path: metadata.annotations["my-annotation"]
+          value: test
+
+  - it: should not render annotations when none specified
+    set:
+      horizontalPodAutoscalers:
+        api:
+          targetDeployment: api
+    asserts:
+      - isNull:
+          path: metadata.annotations
+
+  # =========================================================================
+  # Multiple HPAs
+  # =========================================================================
+  - it: should create multiple HPAs
+    set:
+      horizontalPodAutoscalers:
+        api:
+          targetDeployment: api
+        worker:
+          targetDeployment: worker
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: should render only enabled HPAs
+    set:
+      horizontalPodAutoscalers:
+        api:
+          targetDeployment: api
+        worker:
+          enabled: false
+          targetDeployment: worker
+    asserts:
+      - hasDocuments:
+          count: 1

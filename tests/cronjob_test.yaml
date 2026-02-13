@@ -1,0 +1,676 @@
+suite: Test CronJob Template
+templates:
+  - cronjob.yaml
+tests:
+  # =========================================================================
+  # Empty / no-render cases
+  # =========================================================================
+  - it: should not render when cronjobs is empty
+    set:
+      cronjobs: {}
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should not render when cronjob is disabled
+    set:
+      cronjobs:
+        cleanup:
+          enabled: false
+          schedule: "0 2 * * *"
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render when enabled is explicitly true
+    set:
+      cronjobs:
+        cleanup:
+          enabled: true
+          schedule: "0 2 * * *"
+          image:
+            repository: busybox
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: CronJob
+
+  # =========================================================================
+  # Naming and namespace
+  # =========================================================================
+  - it: should set correct resource name
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+    asserts:
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-golden-chart-cleanup
+
+  - it: should use fullnameOverride
+    set:
+      fullnameOverride: custom
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+    asserts:
+      - equal:
+          path: metadata.name
+          value: custom-cleanup
+
+  - it: should use namespaceOverride
+    set:
+      namespaceOverride: custom-ns
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: custom-ns
+
+  # =========================================================================
+  # Schedule configuration
+  # =========================================================================
+  - it: should set schedule
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "*/5 * * * *"
+    asserts:
+      - equal:
+          path: spec.schedule
+          value: "*/5 * * * *"
+
+  - it: should set timeZone
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+          timeZone: "America/New_York"
+    asserts:
+      - equal:
+          path: spec.timeZone
+          value: "America/New_York"
+
+  - it: should not render timeZone when not specified
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+    asserts:
+      - isNull:
+          path: spec.timeZone
+
+  # =========================================================================
+  # Concurrency and history
+  # =========================================================================
+  - it: should set concurrencyPolicy
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+          concurrencyPolicy: Forbid
+    asserts:
+      - equal:
+          path: spec.concurrencyPolicy
+          value: Forbid
+
+  - it: should support Replace concurrencyPolicy
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+          concurrencyPolicy: Replace
+    asserts:
+      - equal:
+          path: spec.concurrencyPolicy
+          value: Replace
+
+  - it: should set history limits
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+          failedJobsHistoryLimit: 3
+          successfulJobsHistoryLimit: 1
+    asserts:
+      - equal:
+          path: spec.failedJobsHistoryLimit
+          value: 3
+      - equal:
+          path: spec.successfulJobsHistoryLimit
+          value: 1
+
+  - it: should set startingDeadlineSeconds
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+          startingDeadlineSeconds: 300
+    asserts:
+      - equal:
+          path: spec.startingDeadlineSeconds
+          value: 300
+
+  - it: should set suspend to true
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+          suspend: true
+    asserts:
+      - equal:
+          path: spec.suspend
+          value: true
+
+  - it: should set suspend to false
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+          suspend: false
+    asserts:
+      - equal:
+          path: spec.suspend
+          value: false
+
+  - it: should not render suspend when not specified
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+    asserts:
+      - isNull:
+          path: spec.suspend
+
+  # =========================================================================
+  # Job spec
+  # =========================================================================
+  - it: should set backoffLimit
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+          backoffLimit: 3
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.backoffLimit
+          value: 3
+
+  - it: should set activeDeadlineSeconds
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+          activeDeadlineSeconds: 3600
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.activeDeadlineSeconds
+          value: 3600
+
+  - it: should set ttlSecondsAfterFinished
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+          ttlSecondsAfterFinished: 86400
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.ttlSecondsAfterFinished
+          value: 86400
+
+  - it: should set completions and parallelism
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+          completions: 5
+          parallelism: 2
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.completions
+          value: 5
+      - equal:
+          path: spec.jobTemplate.spec.parallelism
+          value: 2
+
+  # =========================================================================
+  # Container image
+  # =========================================================================
+  - it: should set image from cronjob config
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+          image:
+            repository: myorg/cleanup
+            tag: v1.0.0
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].image
+          value: "myorg/cleanup:v1.0.0"
+
+  - it: should fallback to default image
+    set:
+      defaults:
+        image:
+          repository: myorg/default
+          tag: v2.0.0
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].image
+          value: "myorg/default:v2.0.0"
+
+  - it: should set imagePullPolicy
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+          image:
+            repository: myorg/cleanup
+            pullPolicy: Always
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].imagePullPolicy
+          value: Always
+
+  - it: should use container name matching the key
+    set:
+      cronjobs:
+        my-cleanup-job:
+          schedule: "0 2 * * *"
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].name
+          value: my-cleanup-job
+
+  # =========================================================================
+  # Command and args
+  # =========================================================================
+  - it: should set command
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+          command: ["./cleanup", "--force"]
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].command
+          value: ["./cleanup", "--force"]
+
+  - it: should set args
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+          args: ["--verbose", "--dry-run"]
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].args
+          value: ["--verbose", "--dry-run"]
+
+  - it: should not render command/args when not specified
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+    asserts:
+      - isNull:
+          path: spec.jobTemplate.spec.template.spec.containers[0].command
+      - isNull:
+          path: spec.jobTemplate.spec.template.spec.containers[0].args
+
+  # =========================================================================
+  # Environment variables
+  # =========================================================================
+  - it: should set env
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+          env:
+            - name: ENV
+              value: production
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].env[0].name
+          value: ENV
+
+  - it: should set envFrom
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+          envFrom:
+            - secretRef:
+                name: my-secret
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].envFrom[0].secretRef.name
+          value: my-secret
+
+  # =========================================================================
+  # Security context
+  # =========================================================================
+  - it: should set container security context
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+          containerSecurityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].securityContext.runAsNonRoot
+          value: true
+
+  - it: should set pod security context
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+          podSecurityContext:
+            fsGroup: 2000
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.securityContext.fsGroup
+          value: 2000
+
+  # =========================================================================
+  # Resources (defaults fallback)
+  # =========================================================================
+  - it: should set resources from cronjob config
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].resources.requests.cpu
+          value: 200m
+
+  - it: should fallback to default resources
+    set:
+      defaults:
+        resources:
+          requests:
+            cpu: 100m
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].resources.requests.cpu
+          value: 100m
+
+  # =========================================================================
+  # Volumes
+  # =========================================================================
+  - it: should set volumes and volumeMounts
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+          volumes:
+            - name: data
+              emptyDir: {}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.volumes[0].name
+          value: data
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].volumeMounts[0].mountPath
+          value: /data
+
+  # =========================================================================
+  # Restart policy
+  # =========================================================================
+  - it: should default restartPolicy to OnFailure
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.restartPolicy
+          value: OnFailure
+
+  - it: should set custom restartPolicy
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+          restartPolicy: Never
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.restartPolicy
+          value: Never
+
+  # =========================================================================
+  # Scheduling (defaults fallback)
+  # =========================================================================
+  - it: should set nodeSelector from cronjob config
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+          nodeSelector:
+            disktype: ssd
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.nodeSelector.disktype
+          value: ssd
+
+  - it: should fallback to default nodeSelector
+    set:
+      defaults:
+        nodeSelector:
+          disktype: ssd
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.nodeSelector.disktype
+          value: ssd
+
+  - it: should set tolerations
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+          tolerations:
+            - key: "dedicated"
+              operator: "Equal"
+              value: "batch"
+              effect: "NoSchedule"
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.tolerations[0].key
+          value: dedicated
+
+  - it: should fallback to default tolerations
+    set:
+      defaults:
+        tolerations:
+          - key: "dedicated"
+            operator: "Equal"
+            value: "batch"
+            effect: "NoSchedule"
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.tolerations[0].key
+          value: dedicated
+
+  - it: should set affinity
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/os
+                        operator: In
+                        values:
+                          - linux
+    asserts:
+      - isNotNull:
+          path: spec.jobTemplate.spec.template.spec.affinity.nodeAffinity
+
+  # =========================================================================
+  # Service account
+  # =========================================================================
+  - it: should set serviceAccountName when create is true
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+          serviceAccount:
+            create: true
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.serviceAccountName
+          value: RELEASE-NAME-golden-chart-cleanup
+
+  - it: should set serviceAccountName by name
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+          serviceAccount:
+            name: my-sa
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.serviceAccountName
+          value: my-sa
+
+  - it: should not set serviceAccountName when not configured
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+    asserts:
+      - isNull:
+          path: spec.jobTemplate.spec.template.spec.serviceAccountName
+
+  # =========================================================================
+  # Labels and annotations
+  # =========================================================================
+  - it: should set common labels
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+    asserts:
+      - equal:
+          path: metadata.labels["app.kubernetes.io/name"]
+          value: golden-chart
+
+  - it: should add custom labels
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+          labels:
+            custom: label
+    asserts:
+      - equal:
+          path: metadata.labels.custom
+          value: label
+
+  - it: should add annotations
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+          annotations:
+            my-annotation: test
+    asserts:
+      - equal:
+          path: metadata.annotations["my-annotation"]
+          value: test
+
+  - it: should add pod labels
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+          podLabels:
+            pod-label: value
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.metadata.labels["pod-label"]
+          value: value
+
+  - it: should add pod annotations
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+          podAnnotations:
+            pod-annotation: value
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.metadata.annotations["pod-annotation"]
+          value: value
+
+  # =========================================================================
+  # imagePullSecrets
+  # =========================================================================
+  - it: should set imagePullSecrets
+    set:
+      imagePullSecrets:
+        - name: my-registry
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.imagePullSecrets[0].name
+          value: my-registry
+
+  # =========================================================================
+  # Multiple cronjobs
+  # =========================================================================
+  - it: should create multiple cronjobs
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+        backup:
+          schedule: "0 3 * * *"
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: should render only enabled cronjobs
+    set:
+      cronjobs:
+        cleanup:
+          schedule: "0 2 * * *"
+        backup:
+          enabled: false
+          schedule: "0 3 * * *"
+    asserts:
+      - hasDocuments:
+          count: 1

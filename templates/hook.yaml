@@ -51,15 +51,19 @@ spec:
       serviceAccountName: {{ $hook.serviceAccount.name }}
       {{- end }}
       {{- end }}
-      {{- with (include "golden-chart.podSecurityContext" (dict "context" $ "override" $hook.podSecurityContext)) }}
+      {{- with $hook.podSecurityContext }}
       securityContext:
-        {{- . | nindent 8 }}
+        {{- toYaml . | nindent 8 }}
       {{- end }}
       restartPolicy: {{ $hook.restartPolicy | default "Never" }}
       containers:
         - name: {{ $key }}
-          image: {{ include "golden-chart.image" (dict "image" $hook.image "defaults" $.Values.defaults.image) }}
-          imagePullPolicy: {{ $hook.image.pullPolicy | default $.Values.defaults.image.pullPolicy }}
+          {{- $image := $hook.image | default dict }}
+          {{- $defaultImage := $.Values.defaults.image | default dict }}
+          {{- $repository := $image.repository | default $defaultImage.repository | default "nginx" }}
+          {{- $tag := $image.tag | default $defaultImage.tag | default "latest" }}
+          image: "{{ $repository }}:{{ $tag }}"
+          imagePullPolicy: {{ $image.pullPolicy | default $defaultImage.pullPolicy | default "IfNotPresent" }}
           {{- with $hook.command }}
           command:
             {{- toYaml . | nindent 12 }}
@@ -76,9 +80,9 @@ spec:
           envFrom:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with (include "golden-chart.containerSecurityContext" (dict "context" $ "override" $hook.containerSecurityContext)) }}
+          {{- with $hook.containerSecurityContext }}
           securityContext:
-            {{- . | nindent 12 }}
+            {{- toYaml . | nindent 12 }}
           {{- end }}
           {{- $resources := $hook.resources | default $.Values.defaults.resources }}
           {{- if $resources }}

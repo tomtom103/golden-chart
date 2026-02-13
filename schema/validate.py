@@ -1,125 +1,107 @@
 #!/usr/bin/env python3
-"""
-Validation script for Helm values files using Pydantic models.
-
-Usage:
-    python schema/validate.py values.yaml
-    python schema/validate.py examples/values-dev.yaml
-    python schema/validate.py examples/values-production.yaml
-"""
+# /// script
+# requires-python = ">=3.10"
+# dependencies = ["pydantic>=2.0", "pyyaml>=6.0", "typer>=0.15"]
+# ///
+"""Validate Helm values files against Pydantic models."""
 
 import sys
-import yaml
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
+
+import typer
+import yaml
 from pydantic import ValidationError
 
 # Add schema directory to path
-schema_dir = Path(__file__).parent
-sys.path.insert(0, str(schema_dir))
+sys.path.insert(0, str(Path(__file__).parent))
 
 from models import HelmValues
 
+app = typer.Typer(help="Validate Helm values files against the Pydantic schema.")
 
-def load_yaml_file(file_path: str) -> dict[str, Any]:
+
+def load_yaml_file(file_path: Path) -> dict[str, Any]:
     """Load YAML file and return as dictionary."""
     with open(file_path, "r") as f:
         return yaml.safe_load(f) or {}
 
 
 def validate_values(values_dict: dict[str, Any], file_path: str) -> bool:
-    """
-    Validate values dictionary against Pydantic model.
-
-    Returns:
-        True if validation succeeds, False otherwise.
-    """
+    """Validate values dictionary against Pydantic model."""
     try:
-        # Validate the values
         helm_values = HelmValues(**values_dict)
 
-        print(f"✅ Validation successful for {file_path}")
-        print(f"\nSummary:")
+        typer.echo(f"✅ Validation successful for {file_path}")
+        typer.echo(f"\nSummary:")
 
-        # Print resource counts
         if helm_values.deployments:
-            print(f"  - Deployments: {len(helm_values.deployments)}")
+            typer.echo(f"  - Deployments: {len(helm_values.deployments)}")
         if helm_values.services:
-            print(f"  - Services: {len(helm_values.services)}")
+            typer.echo(f"  - Services: {len(helm_values.services)}")
         if helm_values.configMaps:
-            print(f"  - ConfigMaps: {len(helm_values.configMaps)}")
+            typer.echo(f"  - ConfigMaps: {len(helm_values.configMaps)}")
         if helm_values.secrets:
-            print(f"  - Secrets: {len(helm_values.secrets)}")
+            typer.echo(f"  - Secrets: {len(helm_values.secrets)}")
         if helm_values.cronjobs:
-            print(f"  - CronJobs: {len(helm_values.cronjobs)}")
+            typer.echo(f"  - CronJobs: {len(helm_values.cronjobs)}")
         if helm_values.horizontalPodAutoscalers:
-            print(f"  - HPAs: {len(helm_values.horizontalPodAutoscalers)}")
+            typer.echo(f"  - HPAs: {len(helm_values.horizontalPodAutoscalers)}")
 
         if helm_values.istio and helm_values.istio.enabled:
-            print(f"  - Istio enabled: Yes")
+            typer.echo(f"  - Istio enabled: Yes")
             if helm_values.istio.gateways:
-                print(f"    - Gateways: {len(helm_values.istio.gateways)}")
+                typer.echo(f"    - Gateways: {len(helm_values.istio.gateways)}")
             if helm_values.istio.virtualServices:
-                print(
+                typer.echo(
                     f"    - VirtualServices: {len(helm_values.istio.virtualServices)}"
                 )
             if helm_values.istio.destinationRules:
-                print(
+                typer.echo(
                     f"    - DestinationRules: {len(helm_values.istio.destinationRules)}"
                 )
 
         return True
 
     except ValidationError as e:
-        print(f"❌ Validation failed for {file_path}\n")
-        print("Errors:")
+        typer.echo(f"❌ Validation failed for {file_path}\n", err=True)
+        typer.echo("Errors:", err=True)
         for error in e.errors():
             location = " -> ".join(str(loc) for loc in error["loc"])
-            print(f"  - {location}: {error['msg']}")
+            typer.echo(f"  - {location}: {error['msg']}", err=True)
             if "input" in error:
-                print(f"    Input value: {error['input']}")
+                typer.echo(f"    Input value: {error['input']}", err=True)
 
         return False
     except Exception as e:
-        print(f"❌ Unexpected error validating {file_path}: {e}")
+        typer.echo(f"❌ Unexpected error validating {file_path}: {e}", err=True)
         return False
 
 
-def main():
-    """Main validation function."""
-    if len(sys.argv) < 2:
-        print("Usage: python schema/validate.py <values-file.yaml>")
-        print("\nExamples:")
-        print("  python schema/validate.py values.yaml")
-        print("  python schema/validate.py examples/values-dev.yaml")
-        print("  python schema/validate.py examples/values-production.yaml")
-        sys.exit(1)
+@app.command()
+def validate(
+    values_file: Annotated[
+        Path,
+        typer.Argument(help="Path to the values YAML file to validate."),
+    ],
+) -> None:
+    """Validate a Helm values file against the Pydantic schema."""
+    if not values_file.exists():
+        typer.echo(f"❌ File not found: {values_file}", err=True)
+        raise typer.Exit(code=1)
 
-    file_path = sys.argv[1]
+    typer.echo(f"Validating {values_file}...\n")
 
-    # Check if file exists
-    if not Path(file_path).exists():
-        print(f"❌ File not found: {file_path}")
-        sys.exit(1)
-
-    print(f"Validating {file_path}...\n")
-
-    # Load YAML file
     try:
-        values_dict = load_yaml_file(file_path)
+        values_dict = load_yaml_file(values_file)
     except yaml.YAMLError as e:
-        print(f"❌ Failed to parse YAML file: {e}")
-        sys.exit(1)
-    except Exception as e:
-        print(f"❌ Failed to load file: {e}")
-        sys.exit(1)
+        typer.echo(f"❌ Failed to parse YAML file: {e}", err=True)
+        raise typer.Exit(code=1)
 
-    # Validate values
-    success = validate_values(values_dict, file_path)
-
-    # Exit with appropriate code
-    sys.exit(0 if success else 1)
+    success = validate_values(values_dict, str(values_file))
+    if not success:
+        raise typer.Exit(code=1)
 
 
 if __name__ == "__main__":
-    main()
+    app()

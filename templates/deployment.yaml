@@ -6,7 +6,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "golden-chart.fullname" $ }}-{{ $key }}
-  namespace: {{ $.Release.Namespace }}
+  namespace: {{ include "golden-chart.namespace" $ }}
   labels:
     {{- include "golden-chart.labels" $ | nindent 4 }}
     app.kubernetes.io/component: {{ $key }}

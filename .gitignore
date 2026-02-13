@@ -1,5 +1,9 @@
 .vscode/
 .ruff_cache/
+.claude/
+__pycache__/
 
 charts/
+schemas/
 __snapshot__/
+*.tgz

@@ -1,0 +1,402 @@
+suite: Test Istio DestinationRule Template
+templates:
+  - istio/destinationrule.yaml
+tests:
+  # =========================================================================
+  # Empty / no-render cases
+  # =========================================================================
+  - it: should not render when istio is disabled
+    set:
+      istio:
+        enabled: false
+        destinationRules:
+          api:
+            host: api
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should not render when destinationRules is empty
+    set:
+      istio:
+        enabled: true
+        destinationRules: {}
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should not render when destinationRule is disabled
+    set:
+      istio:
+        enabled: true
+        destinationRules:
+          api:
+            enabled: false
+            host: api
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render when enabled
+    set:
+      istio:
+        enabled: true
+        destinationRules:
+          api:
+            host: api
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: DestinationRule
+
+  # =========================================================================
+  # API version
+  # =========================================================================
+  - it: should use networking.istio.io/v1beta1
+    set:
+      istio:
+        enabled: true
+        destinationRules:
+          api:
+            host: api
+    asserts:
+      - isAPIVersion:
+          of: networking.istio.io/v1beta1
+
+  # =========================================================================
+  # Naming and namespace
+  # =========================================================================
+  - it: should set correct resource name with dr- prefix
+    set:
+      istio:
+        enabled: true
+        destinationRules:
+          api:
+            host: api
+    asserts:
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-golden-chart-dr-api
+
+  - it: should use fullnameOverride
+    set:
+      fullnameOverride: custom
+      istio:
+        enabled: true
+        destinationRules:
+          api:
+            host: api
+    asserts:
+      - equal:
+          path: metadata.name
+          value: custom-dr-api
+
+  - it: should use namespaceOverride
+    set:
+      namespaceOverride: custom-ns
+      istio:
+        enabled: true
+        destinationRules:
+          api:
+            host: api
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: custom-ns
+
+  # =========================================================================
+  # Host
+  # =========================================================================
+  - it: should resolve host as service name
+    set:
+      istio:
+        enabled: true
+        destinationRules:
+          api:
+            host: api
+    asserts:
+      - equal:
+          path: spec.host
+          value: RELEASE-NAME-golden-chart-api
+
+  - it: should resolve host with fullnameOverride
+    set:
+      fullnameOverride: custom
+      istio:
+        enabled: true
+        destinationRules:
+          api:
+            host: web
+    asserts:
+      - equal:
+          path: spec.host
+          value: custom-web
+
+  # =========================================================================
+  # Traffic policy
+  # =========================================================================
+  - it: should configure load balancer traffic policy
+    set:
+      istio:
+        enabled: true
+        destinationRules:
+          api:
+            host: api
+            trafficPolicy:
+              loadBalancer:
+                simple: LEAST_REQUEST
+    asserts:
+      - equal:
+          path: spec.trafficPolicy.loadBalancer.simple
+          value: LEAST_REQUEST
+
+  - it: should configure connection pool
+    set:
+      istio:
+        enabled: true
+        destinationRules:
+          api:
+            host: api
+            trafficPolicy:
+              connectionPool:
+                tcp:
+                  maxConnections: 100
+                http:
+                  h2UpgradePolicy: DEFAULT
+                  http1MaxPendingRequests: 100
+                  http2MaxRequests: 1000
+    asserts:
+      - equal:
+          path: spec.trafficPolicy.connectionPool.tcp.maxConnections
+          value: 100
+      - equal:
+          path: spec.trafficPolicy.connectionPool.http.http2MaxRequests
+          value: 1000
+
+  - it: should configure outlier detection
+    set:
+      istio:
+        enabled: true
+        destinationRules:
+          api:
+            host: api
+            trafficPolicy:
+              outlierDetection:
+                consecutive5xxErrors: 5
+                interval: 30s
+                baseEjectionTime: 30s
+                maxEjectionPercent: 50
+    asserts:
+      - equal:
+          path: spec.trafficPolicy.outlierDetection.consecutive5xxErrors
+          value: 5
+      - equal:
+          path: spec.trafficPolicy.outlierDetection.maxEjectionPercent
+          value: 50
+
+  - it: should configure TLS traffic policy
+    set:
+      istio:
+        enabled: true
+        destinationRules:
+          api:
+            host: api
+            trafficPolicy:
+              tls:
+                mode: ISTIO_MUTUAL
+    asserts:
+      - equal:
+          path: spec.trafficPolicy.tls.mode
+          value: ISTIO_MUTUAL
+
+  - it: should not render trafficPolicy when not specified
+    set:
+      istio:
+        enabled: true
+        destinationRules:
+          api:
+            host: api
+    asserts:
+      - isNull:
+          path: spec.trafficPolicy
+
+  # =========================================================================
+  # Subsets
+  # =========================================================================
+  - it: should configure subsets
+    set:
+      istio:
+        enabled: true
+        destinationRules:
+          api:
+            host: api
+            subsets:
+              - name: v1
+                labels:
+                  version: v1
+              - name: v2
+                labels:
+                  version: v2
+    asserts:
+      - equal:
+          path: spec.subsets[0].name
+          value: v1
+      - equal:
+          path: spec.subsets[0].labels.version
+          value: v1
+      - equal:
+          path: spec.subsets[1].name
+          value: v2
+
+  - it: should configure subset with traffic policy
+    set:
+      istio:
+        enabled: true
+        destinationRules:
+          api:
+            host: api
+            subsets:
+              - name: v1
+                labels:
+                  version: v1
+                trafficPolicy:
+                  loadBalancer:
+                    simple: ROUND_ROBIN
+    asserts:
+      - equal:
+          path: spec.subsets[0].trafficPolicy.loadBalancer.simple
+          value: ROUND_ROBIN
+
+  - it: should not render subsets when not specified
+    set:
+      istio:
+        enabled: true
+        destinationRules:
+          api:
+            host: api
+    asserts:
+      - isNull:
+          path: spec.subsets
+
+  # =========================================================================
+  # ExportTo
+  # =========================================================================
+  - it: should set exportTo
+    set:
+      istio:
+        enabled: true
+        destinationRules:
+          api:
+            host: api
+            exportTo:
+              - "."
+    asserts:
+      - equal:
+          path: spec.exportTo
+          value:
+            - "."
+
+  - it: should not render exportTo when not specified
+    set:
+      istio:
+        enabled: true
+        destinationRules:
+          api:
+            host: api
+    asserts:
+      - isNull:
+          path: spec.exportTo
+
+  # =========================================================================
+  # Labels and annotations
+  # =========================================================================
+  - it: should set common labels
+    set:
+      istio:
+        enabled: true
+        destinationRules:
+          api:
+            host: api
+    asserts:
+      - equal:
+          path: metadata.labels["app.kubernetes.io/name"]
+          value: golden-chart
+
+  - it: should add custom labels
+    set:
+      istio:
+        enabled: true
+        destinationRules:
+          api:
+            labels:
+              custom: label
+            host: api
+    asserts:
+      - equal:
+          path: metadata.labels.custom
+          value: label
+
+  - it: should add annotations
+    set:
+      istio:
+        enabled: true
+        destinationRules:
+          api:
+            annotations:
+              my-annotation: test
+            host: api
+    asserts:
+      - equal:
+          path: metadata.annotations["my-annotation"]
+          value: test
+
+  - it: should add global annotations when resource has annotations
+    set:
+      global:
+        annotations:
+          global-annotation: global-value
+      istio:
+        enabled: true
+        destinationRules:
+          api:
+            annotations:
+              local: value
+            host: api
+    asserts:
+      - equal:
+          path: metadata.annotations["global-annotation"]
+          value: global-value
+      - equal:
+          path: metadata.annotations.local
+          value: value
+
+  # =========================================================================
+  # Multiple destination rules
+  # =========================================================================
+  - it: should create multiple destination rules
+    set:
+      istio:
+        enabled: true
+        destinationRules:
+          api:
+            host: api
+          web:
+            host: web
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: should render only enabled destination rules
+    set:
+      istio:
+        enabled: true
+        destinationRules:
+          api:
+            host: api
+          web:
+            enabled: false
+            host: web
+    asserts:
+      - hasDocuments:
+          count: 1

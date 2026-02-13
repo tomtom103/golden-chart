@@ -14,9 +14,9 @@ metadata:
   {{- with $cronJob.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
-  {{- end }}
-  {{- with $.Values.global.annotations }}
+    {{- with $.Values.global.annotations }}
     {{- toYaml . | nindent 4 }}
+    {{- end }}
   {{- end }}
 spec:
   schedule: {{ $cronJob.schedule | quote }}
@@ -35,8 +35,8 @@ spec:
   {{- with $cronJob.startingDeadlineSeconds }}
   startingDeadlineSeconds: {{ . }}
   {{- end }}
-  {{- with $cronJob.suspend }}
-  suspend: {{ . }}
+  {{- if kindIs "bool" $cronJob.suspend }}
+  suspend: {{ $cronJob.suspend }}
   {{- end }}
   jobTemplate:
     metadata:
@@ -83,15 +83,19 @@ spec:
           {{- else if and $cronJob.serviceAccount ($cronJob.serviceAccount.name) }}
           serviceAccountName: {{ $cronJob.serviceAccount.name }}
           {{- end }}
-          {{- with (include "golden-chart.podSecurityContext" (dict "context" $ "override" $cronJob.podSecurityContext)) }}
+          {{- with $cronJob.podSecurityContext }}
           securityContext:
-            {{- . | nindent 12 }}
+            {{- toYaml . | nindent 12 }}
           {{- end }}
           restartPolicy: {{ $cronJob.restartPolicy | default "OnFailure" }}
           containers:
             - name: {{ $key }}
-              image: {{ include "golden-chart.image" (dict "image" $cronJob.image "defaults" $.Values.defaults.image) }}
-              imagePullPolicy: {{ $cronJob.image.pullPolicy | default $.Values.defaults.image.pullPolicy }}
+              {{- $image := $cronJob.image | default dict }}
+              {{- $defaultImage := $.Values.defaults.image | default dict }}
+              {{- $repository := $image.repository | default $defaultImage.repository | default "nginx" }}
+              {{- $tag := $image.tag | default $defaultImage.tag | default "latest" }}
+              image: "{{ $repository }}:{{ $tag }}"
+              imagePullPolicy: {{ $image.pullPolicy | default $defaultImage.pullPolicy | default "IfNotPresent" }}
               {{- with $cronJob.command }}
               command:
                 {{- toYaml . | nindent 16 }}
@@ -108,9 +112,9 @@ spec:
               envFrom:
                 {{- toYaml . | nindent 16 }}
               {{- end }}
-              {{- with (include "golden-chart.containerSecurityContext" (dict "context" $ "override" $cronJob.containerSecurityContext)) }}
+              {{- with $cronJob.containerSecurityContext }}
               securityContext:
-                {{- . | nindent 16 }}
+                {{- toYaml . | nindent 16 }}
               {{- end }}
               {{- $resources := $cronJob.resources | default $.Values.defaults.resources }}
               {{- if $resources }}

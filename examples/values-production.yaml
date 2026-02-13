@@ -1,9 +1,10 @@
-# Production Environment Values
-# Full production configuration with HA and Istio
+# yaml-language-server: $schema=../values.schema.json
+# Production Environment - Data Platform
+# HA setup with Istio mTLS, aggressive HPAs, migration hooks, multiple cronjobs
 
 defaults:
   image:
-    pullPolicy: Never
+    pullPolicy: IfNotPresent
   replicas: 3
   resources:
     requests:
@@ -15,28 +16,27 @@ defaults:
   securityContext:
     runAsNonRoot: true
     runAsUser: 1001
-    fsGroup: 1001
     readOnlyRootFilesystem: true
     allowPrivilegeEscalation: false
-    seccompProfile:
-      type: RuntimeDefault
     capabilities:
       drop:
         - ALL
+    seccompProfile:
+      type: RuntimeDefault
 
 deployments:
-  api:
+  data-api:
     replicas: 5
     image:
-      repository: myapp/api
-      tag: v1.2.0
+      repository: data-platform/api
+      tag: v2.1.0
     ports:
       - name: http
-        containerPort: 8080
+        containerPort: 8000
       - name: metrics
         containerPort: 9090
     env:
-      - name: NODE_ENV
+      - name: ENVIRONMENT
         value: production
       - name: LOG_LEVEL
         value: warn
@@ -47,18 +47,20 @@ deployments:
           secretKeyRef:
             name: db-credentials
             key: url
+      - name: REDIS_URL
+        valueFrom:
+          secretKeyRef:
+            name: redis-credentials
+            key: url
+      - name: WORKERS
+        value: "4"
     volumeMounts:
       - name: tmp
         mountPath: /tmp
-      - name: cache
-        mountPath: /app/cache
     volumes:
       - name: tmp
         emptyDir:
           sizeLimit: 100Mi
-      - name: cache
-        emptyDir:
-          sizeLimit: 500Mi
     livenessProbe:
       enabled: true
       httpGet:
@@ -71,7 +73,7 @@ deployments:
     readinessProbe:
       enabled: true
       httpGet:
-        path: /ready
+        path: /health/ready
         port: http
       initialDelaySeconds: 10
       periodSeconds: 5
@@ -88,23 +90,33 @@ deployments:
       preStop:
         exec:
           command: ["/bin/sh", "-c", "sleep 15"]
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/component: data-api
 
-  worker:
-    replicas: 3
+  celery-worker:
+    replicas: 4
     image:
-      repository: myapp/worker
-      tag: v1.2.0
-    command: ["node", "worker.js"]
+      repository: data-platform/api
+      tag: v2.1.0
+    command: ["celery", "-A", "app.worker", "worker", "--loglevel=warning", "--concurrency=8"]
     env:
-      - name: NODE_ENV
+      - name: ENVIRONMENT
         value: production
-      - name: QUEUE_URL
+      - name: DATABASE_URL
+        valueFrom:
+          secretKeyRef:
+            name: db-credentials
+            key: url
+      - name: REDIS_URL
         valueFrom:
           secretKeyRef:
             name: redis-credentials
             key: url
-      - name: CONCURRENCY
-        value: "10"
     volumeMounts:
       - name: tmp
         mountPath: /tmp
@@ -113,10 +125,65 @@ deployments:
         emptyDir:
           sizeLimit: 100Mi
 
+  celery-beat:
+    replicas: 1
+    image:
+      repository: data-platform/api
+      tag: v2.1.0
+    command: ["celery", "-A", "app.worker", "beat", "--loglevel=warning"]
+    env:
+      - name: ENVIRONMENT
+        value: production
+      - name: REDIS_URL
+        valueFrom:
+          secretKeyRef:
+            name: redis-credentials
+            key: url
+
+  metabase:
+    replicas: 2
+    image:
+      repository: metabase/metabase
+      tag: v0.48.0
+    ports:
+      - name: http
+        containerPort: 3000
+    env:
+      - name: MB_DB_TYPE
+        value: postgres
+      - name: MB_DB_CONNECTION_URI
+        valueFrom:
+          secretKeyRef:
+            name: metabase-db-credentials
+            key: uri
+      - name: MB_JETTY_MAXTHREADS
+        value: "100"
+    volumeMounts:
+      - name: tmp
+        mountPath: /tmp
+    volumes:
+      - name: tmp
+        emptyDir:
+          sizeLimit: 200Mi
+    livenessProbe:
+      enabled: true
+      httpGet:
+        path: /api/health
+        port: http
+      initialDelaySeconds: 90
+      periodSeconds: 30
+    readinessProbe:
+      enabled: true
+      httpGet:
+        path: /api/health
+        port: http
+      initialDelaySeconds: 30
+      periodSeconds: 10
+
 services:
-  api:
+  data-api:
     type: ClusterIP
-    targetDeployment: api
+    targetDeployment: data-api
     ports:
       - name: http
         port: 80
@@ -125,26 +192,30 @@ services:
         port: 9090
         targetPort: metrics
 
+  metabase:
+    type: ClusterIP
+    targetDeployment: metabase
+    ports:
+      - name: http
+        port: 80
+        targetPort: http
+
 configMaps:
-  app-config:
+  data-api-config:
     data:
-      config.json: |
-        {
-          "environment": "production",
-          "features": {
-            "new_ui": true,
-            "experimental_features": false,
-            "rate_limiting": true
-          },
-          "monitoring": {
-            "metrics_enabled": true,
-            "tracing_sample_rate": 0.1
-          }
-        }
+      config.yaml: |
+        environment: production
+        debug: false
+        cors_origins:
+          - "https://data-platform.example.com"
+          - "https://metabase.example.com"
+        rate_limiting:
+          enabled: true
+          requests_per_minute: 300
 
 horizontalPodAutoscalers:
-  api:
-    targetDeployment: api
+  data-api:
+    targetDeployment: data-api
     minReplicas: 5
     maxReplicas: 20
     metrics:
@@ -174,10 +245,10 @@ horizontalPodAutoscalers:
             value: 10
             periodSeconds: 60
 
-  worker:
-    targetDeployment: worker
-    minReplicas: 3
-    maxReplicas: 10
+  celery-worker:
+    targetDeployment: celery-worker
+    minReplicas: 4
+    maxReplicas: 12
     metrics:
       - type: Resource
         resource:
@@ -186,59 +257,147 @@ horizontalPodAutoscalers:
             type: Utilization
             averageUtilization: 70
 
-cronjobs:
-  cleanup:
-    schedule: "0 2 * * *"  # Daily at 2 AM
+hooks:
+  db-migrate:
+    types: "pre-install,pre-upgrade"
+    weight: "-5"
+    deletePolicy: "before-hook-creation,hook-succeeded"
+    backoffLimit: 3
+    activeDeadlineSeconds: 600
     image:
-      repository: myapp/cleanup
-      tag: latest
+      repository: data-platform/api
+      tag: v2.1.0
+    command: ["alembic", "upgrade", "head"]
+    env:
+      - name: DATABASE_URL
+        valueFrom:
+          secretKeyRef:
+            name: db-credentials
+            key: url
+    containerSecurityContext:
+      runAsNonRoot: true
+      runAsUser: 1001
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+
+cronjobs:
+  dbt-run:
+    schedule: "0 */2 * * *"
+    concurrencyPolicy: Forbid
+    failedJobsHistoryLimit: 5
+    successfulJobsHistoryLimit: 3
+    activeDeadlineSeconds: 7200
+    image:
+      repository: data-platform/dbt-runner
+      tag: v2.1.0
+    command: ["dbt", "run", "--target", "production"]
+    env:
+      - name: DBT_PROFILES_DIR
+        value: /app/profiles
+      - name: DATABASE_URL
+        valueFrom:
+          secretKeyRef:
+            name: db-credentials
+            key: url
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: 2000m
+        memory: 4Gi
+
+  data-quality-check:
+    schedule: "30 */6 * * *"
+    concurrencyPolicy: Forbid
+    image:
+      repository: data-platform/dbt-runner
+      tag: v2.1.0
+    command: ["dbt", "test", "--target", "production"]
+    env:
+      - name: DBT_PROFILES_DIR
+        value: /app/profiles
+      - name: DATABASE_URL
+        valueFrom:
+          secretKeyRef:
+            name: db-credentials
+            key: url
+
+  cleanup-old-data:
+    schedule: "0 3 * * 0"
+    concurrencyPolicy: Forbid
+    ttlSecondsAfterFinished: 86400
+    image:
+      repository: data-platform/api
+      tag: v2.1.0
+    command: ["python", "-m", "app.tasks.cleanup", "--days=90"]
+    env:
+      - name: DATABASE_URL
+        valueFrom:
+          secretKeyRef:
+            name: db-credentials
+            key: url
 
 serviceAccount:
   create: true
   annotations:
-    eks.amazonaws.com/role-arn: "arn:aws:iam::123456789012:role/myapp-production"
-    iam.gke.io/gcp-service-account: "myapp-prod@project-id.iam.gserviceaccount.com"
+    eks.amazonaws.com/role-arn: "arn:aws:iam::123456789012:role/data-platform-production"
 
 istio:
   enabled: true
-  
+
   gateways:
     main:
+      selector:
+        istio: ingressgateway
       servers:
         - port:
             number: 443
             name: https
             protocol: HTTPS
           hosts:
-            - "api.myapp.com"
+            - "data-platform.example.com"
+            - "metabase.example.com"
           tls:
             mode: SIMPLE
             credentialName: production-tls
-  
+
   virtualServices:
-    api:
+    data-api:
       hosts:
-        - "api.myapp.com"
+        - "data-platform.example.com"
       gateways:
         - main
       http:
         - match:
             - uri:
-                prefix: "/api/v1"
+                prefix: "/api"
           route:
             - destination:
-                host: api
+                host: data-api
                 port:
                   number: 80
           retries:
             attempts: 3
             perTryTimeout: 3s
-            retryOn: "5xx,reset,connect-failure,refused-stream"
+            retryOn: "5xx,reset,connect-failure"
           timeout: 10s
-  
+
+    metabase:
+      hosts:
+        - "metabase.example.com"
+      gateways:
+        - main
+      http:
+        - route:
+            - destination:
+                host: metabase
+                port:
+                  number: 80
+
   destinationRules:
-    api:
-      host: api
+    data-api:
+      host: data-api
       trafficPolicy:
         connectionPool:
           tcp:
@@ -247,8 +406,7 @@ istio:
             http1MaxPendingRequests: 100
             http2MaxRequests: 200
         loadBalancer:
-          consistentHash:
-            httpHeaderName: x-user-id
+          simple: LEAST_REQUEST
         outlierDetection:
           consecutiveErrors: 5
           interval: 30s

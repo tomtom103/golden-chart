@@ -1,0 +1,622 @@
+suite: Test Hook Template
+templates:
+  - hook.yaml
+tests:
+  # =========================================================================
+  # Empty / no-render cases
+  # =========================================================================
+  - it: should not render when hooks is empty
+    set:
+      hooks: {}
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should not render when hook is disabled
+    set:
+      hooks:
+        db-migrate:
+          enabled: false
+          types: "pre-install"
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render when enabled is explicitly true
+    set:
+      hooks:
+        db-migrate:
+          enabled: true
+          types: "pre-install"
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Job
+
+  # =========================================================================
+  # Naming and namespace
+  # =========================================================================
+  - it: should set correct resource name with hook- prefix
+    set:
+      hooks:
+        db-migrate:
+          types: "pre-install"
+    asserts:
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-golden-chart-hook-db-migrate
+
+  - it: should use fullnameOverride
+    set:
+      fullnameOverride: custom
+      hooks:
+        db-migrate:
+          types: "pre-install"
+    asserts:
+      - equal:
+          path: metadata.name
+          value: custom-hook-db-migrate
+
+  - it: should use namespaceOverride
+    set:
+      namespaceOverride: custom-ns
+      hooks:
+        db-migrate:
+          types: "pre-install"
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: custom-ns
+
+  # =========================================================================
+  # Hook annotations
+  # =========================================================================
+  - it: should set helm.sh/hook annotation
+    set:
+      hooks:
+        db-migrate:
+          types: "pre-install,pre-upgrade"
+    asserts:
+      - equal:
+          path: metadata.annotations["helm.sh/hook"]
+          value: "pre-install,pre-upgrade"
+
+  - it: should set hook weight
+    set:
+      hooks:
+        db-migrate:
+          types: "pre-install"
+          weight: "-5"
+    asserts:
+      - equal:
+          path: metadata.annotations["helm.sh/hook-weight"]
+          value: "-5"
+
+  - it: should default hook weight to 0
+    set:
+      hooks:
+        db-migrate:
+          types: "pre-install"
+    asserts:
+      - equal:
+          path: metadata.annotations["helm.sh/hook-weight"]
+          value: "0"
+
+  - it: should set delete policy
+    set:
+      hooks:
+        db-migrate:
+          types: "pre-install"
+          deletePolicy: "hook-succeeded"
+    asserts:
+      - equal:
+          path: metadata.annotations["helm.sh/hook-delete-policy"]
+          value: "hook-succeeded"
+
+  - it: should default delete policy
+    set:
+      hooks:
+        db-migrate:
+          types: "pre-install"
+    asserts:
+      - equal:
+          path: metadata.annotations["helm.sh/hook-delete-policy"]
+          value: "before-hook-creation,hook-succeeded"
+
+  - it: should add custom annotations alongside hook annotations
+    set:
+      hooks:
+        db-migrate:
+          types: "pre-install"
+          annotations:
+            custom-annotation: value
+    asserts:
+      - equal:
+          path: metadata.annotations["helm.sh/hook"]
+          value: "pre-install"
+      - equal:
+          path: metadata.annotations["custom-annotation"]
+          value: value
+
+  - it: should add global annotations
+    set:
+      global:
+        annotations:
+          global-annotation: global-value
+      hooks:
+        db-migrate:
+          types: "pre-install"
+    asserts:
+      - equal:
+          path: metadata.annotations["global-annotation"]
+          value: global-value
+
+  # =========================================================================
+  # Hook types
+  # =========================================================================
+  - it: should support post-install hook
+    set:
+      hooks:
+        notify:
+          types: "post-install"
+    asserts:
+      - equal:
+          path: metadata.annotations["helm.sh/hook"]
+          value: "post-install"
+
+  - it: should support pre-delete hook
+    set:
+      hooks:
+        cleanup:
+          types: "pre-delete"
+    asserts:
+      - equal:
+          path: metadata.annotations["helm.sh/hook"]
+          value: "pre-delete"
+
+  - it: should support multiple hook types
+    set:
+      hooks:
+        db-migrate:
+          types: "pre-install,pre-upgrade,post-rollback"
+    asserts:
+      - equal:
+          path: metadata.annotations["helm.sh/hook"]
+          value: "pre-install,pre-upgrade,post-rollback"
+
+  # =========================================================================
+  # Job spec
+  # =========================================================================
+  - it: should set backoffLimit
+    set:
+      hooks:
+        db-migrate:
+          types: "pre-install"
+          backoffLimit: 3
+    asserts:
+      - equal:
+          path: spec.backoffLimit
+          value: 3
+
+  - it: should set activeDeadlineSeconds
+    set:
+      hooks:
+        db-migrate:
+          types: "pre-install"
+          activeDeadlineSeconds: 600
+    asserts:
+      - equal:
+          path: spec.activeDeadlineSeconds
+          value: 600
+
+  - it: should set ttlSecondsAfterFinished
+    set:
+      hooks:
+        db-migrate:
+          types: "pre-install"
+          ttlSecondsAfterFinished: 300
+    asserts:
+      - equal:
+          path: spec.ttlSecondsAfterFinished
+          value: 300
+
+  - it: should not render optional job spec fields when not specified
+    set:
+      hooks:
+        db-migrate:
+          types: "pre-install"
+    asserts:
+      - isNull:
+          path: spec.backoffLimit
+      - isNull:
+          path: spec.activeDeadlineSeconds
+      - isNull:
+          path: spec.ttlSecondsAfterFinished
+
+  # =========================================================================
+  # Container image
+  # =========================================================================
+  - it: should set image from hook config
+    set:
+      hooks:
+        db-migrate:
+          types: "pre-install"
+          image:
+            repository: myorg/migrations
+            tag: v1.0.0
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: "myorg/migrations:v1.0.0"
+
+  - it: should fallback to default image
+    set:
+      defaults:
+        image:
+          repository: myorg/default
+          tag: v2.0.0
+      hooks:
+        db-migrate:
+          types: "pre-install"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: "myorg/default:v2.0.0"
+
+  - it: should set imagePullPolicy
+    set:
+      hooks:
+        db-migrate:
+          types: "pre-install"
+          image:
+            repository: myorg/migrations
+            pullPolicy: Always
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].imagePullPolicy
+          value: Always
+
+  - it: should use container name matching the key
+    set:
+      hooks:
+        my-migration:
+          types: "pre-install"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: my-migration
+
+  # =========================================================================
+  # Command and args
+  # =========================================================================
+  - it: should set command and args
+    set:
+      hooks:
+        db-migrate:
+          types: "pre-install"
+          command: ["./migrate"]
+          args: ["up", "--force"]
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].command
+          value: ["./migrate"]
+      - equal:
+          path: spec.template.spec.containers[0].args
+          value: ["up", "--force"]
+
+  # =========================================================================
+  # Environment variables
+  # =========================================================================
+  - it: should set env
+    set:
+      hooks:
+        db-migrate:
+          types: "pre-install"
+          env:
+            - name: DATABASE_URL
+              value: "postgres://localhost/db"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[0].name
+          value: DATABASE_URL
+
+  - it: should set envFrom
+    set:
+      hooks:
+        db-migrate:
+          types: "pre-install"
+          envFrom:
+            - secretRef:
+                name: db-creds
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].envFrom[0].secretRef.name
+          value: db-creds
+
+  # =========================================================================
+  # Security context
+  # =========================================================================
+  - it: should set container security context
+    set:
+      hooks:
+        db-migrate:
+          types: "pre-install"
+          containerSecurityContext:
+            runAsNonRoot: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsNonRoot
+          value: true
+
+  - it: should set pod security context
+    set:
+      hooks:
+        db-migrate:
+          types: "pre-install"
+          podSecurityContext:
+            fsGroup: 2000
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.fsGroup
+          value: 2000
+
+  # =========================================================================
+  # Resources (defaults fallback)
+  # =========================================================================
+  - it: should set resources from hook config
+    set:
+      hooks:
+        db-migrate:
+          types: "pre-install"
+          resources:
+            requests:
+              cpu: 200m
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: 200m
+
+  - it: should fallback to default resources
+    set:
+      defaults:
+        resources:
+          requests:
+            cpu: 100m
+      hooks:
+        db-migrate:
+          types: "pre-install"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: 100m
+
+  # =========================================================================
+  # Volumes
+  # =========================================================================
+  - it: should set volumes and volumeMounts
+    set:
+      hooks:
+        db-migrate:
+          types: "pre-install"
+          volumes:
+            - name: config
+              configMap:
+                name: migration-config
+          volumeMounts:
+            - name: config
+              mountPath: /config
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].name
+          value: config
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0].mountPath
+          value: /config
+
+  # =========================================================================
+  # Restart policy
+  # =========================================================================
+  - it: should default restartPolicy to Never
+    set:
+      hooks:
+        db-migrate:
+          types: "pre-install"
+    asserts:
+      - equal:
+          path: spec.template.spec.restartPolicy
+          value: Never
+
+  - it: should set custom restartPolicy
+    set:
+      hooks:
+        db-migrate:
+          types: "pre-install"
+          restartPolicy: OnFailure
+    asserts:
+      - equal:
+          path: spec.template.spec.restartPolicy
+          value: OnFailure
+
+  # =========================================================================
+  # Scheduling (defaults fallback)
+  # =========================================================================
+  - it: should set nodeSelector
+    set:
+      hooks:
+        db-migrate:
+          types: "pre-install"
+          nodeSelector:
+            disktype: ssd
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector.disktype
+          value: ssd
+
+  - it: should fallback to default nodeSelector
+    set:
+      defaults:
+        nodeSelector:
+          disktype: ssd
+      hooks:
+        db-migrate:
+          types: "pre-install"
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector.disktype
+          value: ssd
+
+  - it: should set tolerations
+    set:
+      hooks:
+        db-migrate:
+          types: "pre-install"
+          tolerations:
+            - key: "dedicated"
+              operator: "Equal"
+              value: "batch"
+    asserts:
+      - equal:
+          path: spec.template.spec.tolerations[0].key
+          value: dedicated
+
+  - it: should fallback to default tolerations
+    set:
+      defaults:
+        tolerations:
+          - key: "dedicated"
+            operator: "Equal"
+            value: "batch"
+      hooks:
+        db-migrate:
+          types: "pre-install"
+    asserts:
+      - equal:
+          path: spec.template.spec.tolerations[0].key
+          value: dedicated
+
+  # =========================================================================
+  # Service account
+  # =========================================================================
+  - it: should set serviceAccountName when create is true
+    set:
+      hooks:
+        db-migrate:
+          types: "pre-install"
+          serviceAccount:
+            create: true
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: RELEASE-NAME-golden-chart-hook-db-migrate
+
+  - it: should set serviceAccountName by name
+    set:
+      hooks:
+        db-migrate:
+          types: "pre-install"
+          serviceAccount:
+            name: my-sa
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: my-sa
+
+  - it: should not set serviceAccountName when not configured
+    set:
+      hooks:
+        db-migrate:
+          types: "pre-install"
+    asserts:
+      - isNull:
+          path: spec.template.spec.serviceAccountName
+
+  # =========================================================================
+  # Labels
+  # =========================================================================
+  - it: should set common labels
+    set:
+      hooks:
+        db-migrate:
+          types: "pre-install"
+    asserts:
+      - equal:
+          path: metadata.labels["app.kubernetes.io/name"]
+          value: golden-chart
+
+  - it: should add custom labels
+    set:
+      hooks:
+        db-migrate:
+          types: "pre-install"
+          labels:
+            custom: label
+    asserts:
+      - equal:
+          path: metadata.labels.custom
+          value: label
+
+  - it: should add pod labels
+    set:
+      hooks:
+        db-migrate:
+          types: "pre-install"
+          podLabels:
+            pod-label: value
+    asserts:
+      - equal:
+          path: spec.template.metadata.labels["pod-label"]
+          value: value
+
+  - it: should add pod annotations
+    set:
+      hooks:
+        db-migrate:
+          types: "pre-install"
+          podAnnotations:
+            pod-annotation: value
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["pod-annotation"]
+          value: value
+
+  # =========================================================================
+  # imagePullSecrets
+  # =========================================================================
+  - it: should set imagePullSecrets
+    set:
+      imagePullSecrets:
+        - name: my-registry
+      hooks:
+        db-migrate:
+          types: "pre-install"
+    asserts:
+      - equal:
+          path: spec.template.spec.imagePullSecrets[0].name
+          value: my-registry
+
+  # =========================================================================
+  # Multiple hooks
+  # =========================================================================
+  - it: should create multiple hooks
+    set:
+      hooks:
+        db-migrate:
+          types: "pre-install"
+        seed-data:
+          types: "post-install"
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: should render only enabled hooks
+    set:
+      hooks:
+        db-migrate:
+          types: "pre-install"
+        seed-data:
+          enabled: false
+          types: "post-install"
+    asserts:
+      - hasDocuments:
+          count: 1

@@ -1,0 +1,381 @@
+suite: Test PVC Template
+templates:
+  - pvc.yaml
+tests:
+  # =========================================================================
+  # Empty / no-render cases
+  # =========================================================================
+  - it: should not render when persistentVolumeClaims is empty
+    set:
+      persistentVolumeClaims: {}
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should not render when PVC is disabled
+    set:
+      persistentVolumeClaims:
+        data:
+          enabled: false
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render when enabled is explicitly true
+    set:
+      persistentVolumeClaims:
+        data:
+          enabled: true
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: PersistentVolumeClaim
+
+  # =========================================================================
+  # Naming and namespace
+  # =========================================================================
+  - it: should set correct resource name
+    set:
+      persistentVolumeClaims:
+        data:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
+    asserts:
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-golden-chart-data
+
+  - it: should use fullnameOverride
+    set:
+      fullnameOverride: custom
+      persistentVolumeClaims:
+        data:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
+    asserts:
+      - equal:
+          path: metadata.name
+          value: custom-data
+
+  - it: should use namespaceOverride
+    set:
+      namespaceOverride: custom-ns
+      persistentVolumeClaims:
+        data:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: custom-ns
+
+  # =========================================================================
+  # Access modes
+  # =========================================================================
+  - it: should set ReadWriteOnce access mode
+    set:
+      persistentVolumeClaims:
+        data:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
+    asserts:
+      - equal:
+          path: spec.accessModes
+          value:
+            - ReadWriteOnce
+
+  - it: should set ReadWriteMany access mode
+    set:
+      persistentVolumeClaims:
+        shared:
+          accessModes:
+            - ReadWriteMany
+          resources:
+            requests:
+              storage: 50Gi
+    asserts:
+      - equal:
+          path: spec.accessModes
+          value:
+            - ReadWriteMany
+
+  - it: should set ReadOnlyMany access mode
+    set:
+      persistentVolumeClaims:
+        readonly:
+          accessModes:
+            - ReadOnlyMany
+          resources:
+            requests:
+              storage: 5Gi
+    asserts:
+      - equal:
+          path: spec.accessModes
+          value:
+            - ReadOnlyMany
+
+  - it: should support multiple access modes
+    set:
+      persistentVolumeClaims:
+        data:
+          accessModes:
+            - ReadWriteOnce
+            - ReadOnlyMany
+          resources:
+            requests:
+              storage: 10Gi
+    asserts:
+      - lengthEqual:
+          path: spec.accessModes
+          count: 2
+
+  # =========================================================================
+  # Storage
+  # =========================================================================
+  - it: should set storage request
+    set:
+      persistentVolumeClaims:
+        data:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 100Gi
+    asserts:
+      - equal:
+          path: spec.resources.requests.storage
+          value: 100Gi
+
+  # =========================================================================
+  # Storage class
+  # =========================================================================
+  - it: should set storageClassName
+    set:
+      persistentVolumeClaims:
+        data:
+          accessModes:
+            - ReadWriteOnce
+          storageClassName: gp3
+          resources:
+            requests:
+              storage: 10Gi
+    asserts:
+      - equal:
+          path: spec.storageClassName
+          value: gp3
+
+  - it: should not set storageClassName when not specified
+    set:
+      persistentVolumeClaims:
+        data:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
+    asserts:
+      - isNull:
+          path: spec.storageClassName
+
+  # =========================================================================
+  # Selector
+  # =========================================================================
+  - it: should set selector with matchLabels
+    set:
+      persistentVolumeClaims:
+        data:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
+          selector:
+            matchLabels:
+              type: ssd
+    asserts:
+      - equal:
+          path: spec.selector.matchLabels.type
+          value: ssd
+
+  - it: should not set selector when not specified
+    set:
+      persistentVolumeClaims:
+        data:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
+    asserts:
+      - isNull:
+          path: spec.selector
+
+  # =========================================================================
+  # Volume name
+  # =========================================================================
+  - it: should set volumeName
+    set:
+      persistentVolumeClaims:
+        data:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
+          volumeName: pv-existing
+    asserts:
+      - equal:
+          path: spec.volumeName
+          value: pv-existing
+
+  - it: should not set volumeName when not specified
+    set:
+      persistentVolumeClaims:
+        data:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
+    asserts:
+      - isNull:
+          path: spec.volumeName
+
+  # =========================================================================
+  # Labels and annotations
+  # =========================================================================
+  - it: should set common labels
+    set:
+      persistentVolumeClaims:
+        data:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
+    asserts:
+      - equal:
+          path: metadata.labels["app.kubernetes.io/name"]
+          value: golden-chart
+      - equal:
+          path: metadata.labels["app.kubernetes.io/managed-by"]
+          value: Helm
+
+  - it: should add custom labels
+    set:
+      persistentVolumeClaims:
+        data:
+          labels:
+            custom: label
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
+    asserts:
+      - equal:
+          path: metadata.labels.custom
+          value: label
+
+  - it: should add annotations
+    set:
+      persistentVolumeClaims:
+        data:
+          annotations:
+            volume.beta.kubernetes.io/storage-class: "fast"
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
+    asserts:
+      - equal:
+          path: metadata.annotations["volume.beta.kubernetes.io/storage-class"]
+          value: "fast"
+
+  - it: should add global annotations when resource has annotations
+    set:
+      global:
+        annotations:
+          global-annotation: global-value
+      persistentVolumeClaims:
+        data:
+          annotations:
+            local: value
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
+    asserts:
+      - equal:
+          path: metadata.annotations["global-annotation"]
+          value: global-value
+      - equal:
+          path: metadata.annotations.local
+          value: value
+
+  # =========================================================================
+  # Multiple PVCs
+  # =========================================================================
+  - it: should create multiple PVCs
+    set:
+      persistentVolumeClaims:
+        data:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
+        logs:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 5Gi
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: should render only enabled PVCs
+    set:
+      persistentVolumeClaims:
+        data:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
+        logs:
+          enabled: false
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 5Gi
+    asserts:
+      - hasDocuments:
+          count: 1

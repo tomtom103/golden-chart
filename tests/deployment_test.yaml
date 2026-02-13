@@ -2,6 +2,9 @@ suite: Test Deployment Template
 templates:
   - deployment.yaml
 tests:
+  # =========================================================================
+  # Empty / no-render cases
+  # =========================================================================
   - it: should not render when deployments is empty
     set:
       deployments: {}
@@ -9,6 +12,33 @@ tests:
       - hasDocuments:
           count: 0
 
+  - it: should not render when deployment is explicitly disabled
+    set:
+      deployments:
+        api:
+          enabled: false
+          image:
+            repository: nginx
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render when enabled is explicitly true
+    set:
+      deployments:
+        api:
+          enabled: true
+          image:
+            repository: nginx
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Deployment
+
+  # =========================================================================
+  # Minimal config and naming
+  # =========================================================================
   - it: should render deployment with minimal config
     set:
       deployments:
@@ -26,6 +56,45 @@ tests:
           path: spec.template.spec.containers[0].image
           value: nginx:latest
 
+  - it: should use fullnameOverride in resource name
+    set:
+      fullnameOverride: custom-name
+      deployments:
+        api:
+          image:
+            repository: nginx
+    asserts:
+      - equal:
+          path: metadata.name
+          value: custom-name-api
+
+  - it: should use nameOverride in resource name
+    set:
+      nameOverride: short
+      deployments:
+        api:
+          image:
+            repository: nginx
+    asserts:
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-short-api
+
+  - it: should use namespaceOverride
+    set:
+      namespaceOverride: custom-ns
+      deployments:
+        api:
+          image:
+            repository: nginx
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: custom-ns
+
+  # =========================================================================
+  # Defaults inheritance
+  # =========================================================================
   - it: should use defaults when deployment config is empty object
     set:
       defaults:
@@ -64,6 +133,176 @@ tests:
           path: spec.template.spec.containers[0].image
           value: custom:v2.0.0
 
+  - it: should inherit default security context via deep merge
+    set:
+      defaults:
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+      deployments:
+        api:
+          image:
+            repository: nginx
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsUser
+          value: 1000
+
+  - it: should override default security context when specified
+    set:
+      defaults:
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+      deployments:
+        api:
+          image:
+            repository: nginx
+          securityContext:
+            runAsNonRoot: false
+            runAsUser: 0
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsNonRoot
+          value: false
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsUser
+          value: 0
+
+  - it: should inherit default resources
+    set:
+      defaults:
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+      deployments:
+        api:
+          image:
+            repository: nginx
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: 100m
+
+  - it: should override default resources
+    set:
+      defaults:
+        resources:
+          requests:
+            cpu: 100m
+      deployments:
+        api:
+          image:
+            repository: nginx
+          resources:
+            requests:
+              cpu: 500m
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: 500m
+
+  - it: should inherit default nodeSelector
+    set:
+      defaults:
+        nodeSelector:
+          disktype: ssd
+      deployments:
+        api:
+          image:
+            repository: nginx
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector.disktype
+          value: ssd
+
+  - it: should override default nodeSelector
+    set:
+      defaults:
+        nodeSelector:
+          disktype: ssd
+      deployments:
+        api:
+          image:
+            repository: nginx
+          nodeSelector:
+            disktype: hdd
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector.disktype
+          value: hdd
+
+  - it: should inherit default tolerations
+    set:
+      defaults:
+        tolerations:
+          - key: "dedicated"
+            operator: "Equal"
+            value: "gpu"
+            effect: "NoSchedule"
+      deployments:
+        api:
+          image:
+            repository: nginx
+    asserts:
+      - equal:
+          path: spec.template.spec.tolerations[0].key
+          value: dedicated
+
+  - it: should inherit default affinity
+    set:
+      defaults:
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+                - matchExpressions:
+                    - key: topology.kubernetes.io/zone
+                      operator: In
+                      values:
+                        - us-east-1a
+      deployments:
+        api:
+          image:
+            repository: nginx
+    asserts:
+      - isNotNull:
+          path: spec.template.spec.affinity.nodeAffinity
+
+  - it: should use default image pullPolicy
+    set:
+      defaults:
+        image:
+          pullPolicy: Always
+      deployments:
+        api:
+          image:
+            repository: nginx
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].imagePullPolicy
+          value: Always
+
+  - it: should default to nginx:latest when no image specified
+    set:
+      defaults:
+        image:
+          repository: ""
+          tag: ""
+      deployments:
+        api: {}
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].imagePullPolicy
+          value: IfNotPresent
+
+  # =========================================================================
+  # Labels and annotations
+  # =========================================================================
   - it: should set labels correctly
     set:
       deployments:
@@ -80,7 +319,240 @@ tests:
       - equal:
           path: metadata.labels["app.kubernetes.io/component"]
           value: api
+      - isNotNull:
+          path: metadata.labels["helm.sh/chart"]
+      - equal:
+          path: metadata.labels["app.kubernetes.io/managed-by"]
+          value: Helm
 
+  - it: should add custom deployment-level labels
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+          labels:
+            custom-label: custom-value
+    asserts:
+      - equal:
+          path: metadata.labels["custom-label"]
+          value: custom-value
+
+  - it: should add deployment-level annotations
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+          annotations:
+            my-annotation: my-value
+    asserts:
+      - equal:
+          path: metadata.annotations["my-annotation"]
+          value: my-value
+
+  - it: should not render annotations when none specified
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+    asserts:
+      - isNull:
+          path: metadata.annotations
+
+  - it: should add pod labels
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+          podLabels:
+            sidecar.istio.io/inject: "true"
+    asserts:
+      - equal:
+          path: spec.template.metadata.labels["sidecar.istio.io/inject"]
+          value: "true"
+
+  - it: should add pod annotations
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+          podAnnotations:
+            prometheus.io/scrape: "true"
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["prometheus.io/scrape"]
+          value: "true"
+
+  - it: should not render pod annotations when none specified
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+    asserts:
+      - isNull:
+          path: spec.template.metadata.annotations
+
+  # =========================================================================
+  # Selector labels
+  # =========================================================================
+  - it: should set selector matchLabels with component
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+    asserts:
+      - equal:
+          path: spec.selector.matchLabels
+          value:
+            app.kubernetes.io/name: golden-chart
+            app.kubernetes.io/instance: RELEASE-NAME
+            app.kubernetes.io/component: api
+
+  - it: should set pod template labels with component
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+    asserts:
+      - equal:
+          path: spec.template.metadata.labels["app.kubernetes.io/component"]
+          value: api
+
+  # =========================================================================
+  # Replicas
+  # =========================================================================
+  - it: should default replicas to 1
+    set:
+      defaults:
+        replicas: null
+      deployments:
+        api:
+          image:
+            repository: nginx
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 1
+
+  - it: should set explicit replicas
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+          replicas: 5
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 5
+
+  # =========================================================================
+  # Strategy
+  # =========================================================================
+  - it: should configure rolling update strategy
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+          strategy:
+            type: RollingUpdate
+            rollingUpdate:
+              maxSurge: 1
+              maxUnavailable: 0
+    asserts:
+      - equal:
+          path: spec.strategy.type
+          value: RollingUpdate
+      - equal:
+          path: spec.strategy.rollingUpdate.maxSurge
+          value: 1
+      - equal:
+          path: spec.strategy.rollingUpdate.maxUnavailable
+          value: 0
+
+  - it: should configure recreate strategy
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+          strategy:
+            type: Recreate
+    asserts:
+      - equal:
+          path: spec.strategy.type
+          value: Recreate
+
+  - it: should not render strategy when not specified
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+    asserts:
+      - isNull:
+          path: spec.strategy
+
+  # =========================================================================
+  # Container image
+  # =========================================================================
+  - it: should construct image from repository and tag
+    set:
+      deployments:
+        api:
+          image:
+            repository: myorg/myapp
+            tag: v2.0.0
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: "myorg/myapp:v2.0.0"
+
+  - it: should set imagePullPolicy
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+            pullPolicy: Always
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].imagePullPolicy
+          value: Always
+
+  - it: should default imagePullPolicy to IfNotPresent
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].imagePullPolicy
+          value: IfNotPresent
+
+  - it: should use container name matching the key
+    set:
+      deployments:
+        my-worker:
+          image:
+            repository: nginx
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: my-worker
+
+  # =========================================================================
+  # Ports
+  # =========================================================================
   - it: should configure container ports
     set:
       deployments:
@@ -106,6 +578,74 @@ tests:
           path: spec.template.spec.containers[0].ports[1].containerPort
           value: 9090
 
+  - it: should not render ports when not specified
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+    asserts:
+      - isNull:
+          path: spec.template.spec.containers[0].ports
+
+  # =========================================================================
+  # Command and args
+  # =========================================================================
+  - it: should configure command
+    set:
+      deployments:
+        worker:
+          image:
+            repository: nginx
+          command: ["celery", "-A", "app", "worker"]
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].command
+          value: ["celery", "-A", "app", "worker"]
+
+  - it: should configure args
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+          args: ["--port", "8080"]
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].args
+          value: ["--port", "8080"]
+
+  - it: should configure both command and args
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+          command: ["/bin/sh"]
+          args: ["-c", "echo hello"]
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].command
+          value: ["/bin/sh"]
+      - equal:
+          path: spec.template.spec.containers[0].args
+          value: ["-c", "echo hello"]
+
+  - it: should not render command/args when not specified
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+    asserts:
+      - isNull:
+          path: spec.template.spec.containers[0].command
+      - isNull:
+          path: spec.template.spec.containers[0].args
+
+  # =========================================================================
+  # Environment variables
+  # =========================================================================
   - it: should configure environment variables
     set:
       deployments:
@@ -134,6 +674,40 @@ tests:
           path: spec.template.spec.containers[0].env[1].valueFrom.secretKeyRef.name
           value: my-secret
 
+  - it: should configure envFrom
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+          envFrom:
+            - configMapRef:
+                name: my-config
+            - secretRef:
+                name: my-secret
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].envFrom[0].configMapRef.name
+          value: my-config
+      - equal:
+          path: spec.template.spec.containers[0].envFrom[1].secretRef.name
+          value: my-secret
+
+  - it: should not render env/envFrom when not specified
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+    asserts:
+      - isNull:
+          path: spec.template.spec.containers[0].env
+      - isNull:
+          path: spec.template.spec.containers[0].envFrom
+
+  # =========================================================================
+  # Probes
+  # =========================================================================
   - it: should configure liveness probe
     set:
       deployments:
@@ -157,6 +731,8 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].livenessProbe.initialDelaySeconds
           value: 30
+      - isNull:
+          path: spec.template.spec.containers[0].livenessProbe.enabled
 
   - it: should not render liveness probe when disabled
     set:
@@ -170,6 +746,153 @@ tests:
       - isNull:
           path: spec.template.spec.containers[0].livenessProbe
 
+  - it: should not render liveness probe when not specified
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+    asserts:
+      - isNull:
+          path: spec.template.spec.containers[0].livenessProbe
+
+  - it: should configure readiness probe
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+          readinessProbe:
+            enabled: true
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /ready
+      - isNull:
+          path: spec.template.spec.containers[0].readinessProbe.enabled
+
+  - it: should not render readiness probe when disabled
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+          readinessProbe:
+            enabled: false
+    asserts:
+      - isNull:
+          path: spec.template.spec.containers[0].readinessProbe
+
+  - it: should configure startup probe
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+          startupProbe:
+            enabled: true
+            httpGet:
+              path: /startup
+              port: http
+            failureThreshold: 30
+            periodSeconds: 10
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.httpGet.path
+          value: /startup
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.failureThreshold
+          value: 30
+      - isNull:
+          path: spec.template.spec.containers[0].startupProbe.enabled
+
+  - it: should not render startup probe when disabled
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+          startupProbe:
+            enabled: false
+    asserts:
+      - isNull:
+          path: spec.template.spec.containers[0].startupProbe
+
+  - it: should configure tcp socket liveness probe
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+          livenessProbe:
+            enabled: true
+            tcpSocket:
+              port: 8080
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.tcpSocket.port
+          value: 8080
+
+  - it: should configure exec liveness probe
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+          livenessProbe:
+            enabled: true
+            exec:
+              command:
+                - cat
+                - /tmp/healthy
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.exec.command
+          value: ["cat", "/tmp/healthy"]
+
+  # =========================================================================
+  # Lifecycle
+  # =========================================================================
+  - it: should configure lifecycle hooks
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 15"]
+            postStart:
+              httpGet:
+                path: /init
+                port: 8080
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].lifecycle.preStop.exec.command
+          value: ["/bin/sh", "-c", "sleep 15"]
+      - equal:
+          path: spec.template.spec.containers[0].lifecycle.postStart.httpGet.path
+          value: /init
+
+  - it: should not render lifecycle when not specified
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+    asserts:
+      - isNull:
+          path: spec.template.spec.containers[0].lifecycle
+
+  # =========================================================================
+  # Security context
+  # =========================================================================
   - it: should configure security context
     set:
       deployments:
@@ -191,6 +914,29 @@ tests:
           path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
           value: true
 
+  - it: should configure security context with capabilities
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+          securityContext:
+            capabilities:
+              drop:
+                - ALL
+              add:
+                - NET_BIND_SERVICE
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.capabilities.drop
+          value: ["ALL"]
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.capabilities.add
+          value: ["NET_BIND_SERVICE"]
+
+  # =========================================================================
+  # Resources
+  # =========================================================================
   - it: should configure resources
     set:
       deployments:
@@ -218,6 +964,9 @@ tests:
           path: spec.template.spec.containers[0].resources.limits.memory
           value: 512Mi
 
+  # =========================================================================
+  # Init containers
+  # =========================================================================
   - it: should configure init containers
     set:
       deployments:
@@ -236,6 +985,69 @@ tests:
           path: spec.template.spec.initContainers[0].image
           value: busybox:latest
 
+  - it: should support multiple init containers
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+          initContainers:
+            - name: init-db
+              image: busybox:latest
+            - name: init-cache
+              image: redis:latest
+    asserts:
+      - lengthEqual:
+          path: spec.template.spec.initContainers
+          count: 2
+
+  - it: should not render init containers when not specified
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+    asserts:
+      - isNull:
+          path: spec.template.spec.initContainers
+
+  # =========================================================================
+  # Sidecar containers
+  # =========================================================================
+  - it: should configure sidecar containers
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+          sidecarContainers:
+            - name: log-shipper
+              image: fluentd:latest
+              volumeMounts:
+                - name: logs
+                  mountPath: /var/log
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[1].name
+          value: log-shipper
+      - equal:
+          path: spec.template.spec.containers[1].image
+          value: fluentd:latest
+
+  - it: should not render extra containers when no sidecars
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+    asserts:
+      - lengthEqual:
+          path: spec.template.spec.containers
+          count: 1
+
+  # =========================================================================
+  # Volumes and volumeMounts
+  # =========================================================================
   - it: should configure volumes and volumeMounts
     set:
       deployments:
@@ -264,7 +1076,54 @@ tests:
           path: spec.template.spec.containers[0].volumeMounts[0].mountPath
           value: /etc/config
 
-  - it: should configure service account
+  - it: should support emptyDir volume
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+          volumes:
+            - name: tmp
+              emptyDir: {}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].emptyDir
+          value: {}
+
+  - it: should support PVC volume
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+          volumes:
+            - name: data
+              persistentVolumeClaim:
+                claimName: my-pvc
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].persistentVolumeClaim.claimName
+          value: my-pvc
+
+  - it: should not render volumes/volumeMounts when not specified
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+    asserts:
+      - isNull:
+          path: spec.template.spec.volumes
+      - isNull:
+          path: spec.template.spec.containers[0].volumeMounts
+
+  # =========================================================================
+  # Service account
+  # =========================================================================
+  - it: should configure service account when created
     set:
       serviceAccount:
         create: true
@@ -278,6 +1137,80 @@ tests:
           path: spec.template.spec.serviceAccountName
           value: my-sa
 
+  - it: should use default service account name from fullname
+    set:
+      serviceAccount:
+        create: true
+      deployments:
+        api:
+          image:
+            repository: nginx
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: RELEASE-NAME-golden-chart
+
+  - it: should use named service account without create
+    set:
+      serviceAccount:
+        create: false
+        name: existing-sa
+      deployments:
+        api:
+          image:
+            repository: nginx
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: existing-sa
+
+  - it: should not render serviceAccountName when no serviceAccount config
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+    asserts:
+      - isNull:
+          path: spec.template.spec.serviceAccountName
+
+  # =========================================================================
+  # Topology spread constraints
+  # =========================================================================
+  - it: should configure topology spread constraints
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+          topologySpreadConstraints:
+            - maxSkew: 1
+              topologyKey: topology.kubernetes.io/zone
+              whenUnsatisfiable: DoNotSchedule
+              labelSelector:
+                matchLabels:
+                  app: api
+    asserts:
+      - equal:
+          path: spec.template.spec.topologySpreadConstraints[0].maxSkew
+          value: 1
+      - equal:
+          path: spec.template.spec.topologySpreadConstraints[0].topologyKey
+          value: topology.kubernetes.io/zone
+
+  - it: should not render topology spread constraints when not specified
+    set:
+      deployments:
+        api:
+          image:
+            repository: nginx
+    asserts:
+      - isNull:
+          path: spec.template.spec.topologySpreadConstraints
+
+  # =========================================================================
+  # Multiple deployments
+  # =========================================================================
   - it: should render multiple deployments
     set:
       deployments:
@@ -290,3 +1223,30 @@ tests:
     asserts:
       - hasDocuments:
           count: 2
+
+  - it: should render only enabled deployments from mix
+    set:
+      deployments:
+        api:
+          image:
+            repository: api-image
+        worker:
+          enabled: false
+          image:
+            repository: worker-image
+        scheduler:
+          image:
+            repository: scheduler-image
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  # =========================================================================
+  # Dev values integration
+  # =========================================================================
+  - it: should render all deployments from dev values
+    values:
+      - ../examples/values-dev.yaml
+    asserts:
+      - hasDocuments:
+          count: 3
